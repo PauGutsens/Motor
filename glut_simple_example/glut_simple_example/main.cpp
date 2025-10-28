@@ -3,11 +3,14 @@
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 #include "Camera.h"
+#include <chrono>
 using namespace std;
 
 static Camera camera;
+static auto lastFrameTime = chrono::high_resolution_clock::now();
 
-static void draw_triangle(const glm::u8vec3& color, const vec3& center, double size) {
+static void draw_triangle(const glm::u8vec3& color, const vec3& center, double size) 
+{
 	glColor3ub(color.r, color.g, color.b);
 	glBegin(GL_TRIANGLES);
 	glVertex3d(center.x, center.y + size, center.z);
@@ -16,10 +19,12 @@ static void draw_triangle(const glm::u8vec3& color, const vec3& center, double s
 	glEnd();
 }
 
-static void draw_floorGrid(int size, double step) {
+static void draw_floorGrid(int size, double step) 
+{
 	glColor3ub(0, 0, 0);
 	glBegin(GL_LINES);
-	for (double i = -size; i <= size; i += step) {
+	for (double i = -size; i <= size; i += step) 
+	{
 		glVertex3d(i, 0, -size);
 		glVertex3d(i, 0, size);
 		glVertex3d(-size, 0, i);
@@ -28,14 +33,21 @@ static void draw_floorGrid(int size, double step) {
 	glEnd();
 }
 
-static void display_func() {
+static void display_func() 
+{
+	auto currentTime = chrono::high_resolution_clock::now();
+	double deltaTime = chrono::duration<double>(currentTime - lastFrameTime).count();
+	lastFrameTime = currentTime;
+
+	camera.update(deltaTime);
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixd(&camera.view()[0][0]);
 
 	draw_floorGrid(16, 0.25);
-	draw_triangle( Colors::Red, vec3(-1, 0.25, 0), 0.5);
+	draw_triangle(Colors::Red, vec3(-1, 0.25, 0), 0.5);
 	draw_triangle(Colors::Green, vec3(0, 0.5, 0.25), 0.5);
 	draw_triangle(Colors::Blue, vec3(1, -0.5, -0.25), 0.5);
 
@@ -62,19 +74,60 @@ static void init_opengl() {
 	glClearColor(0.5, 0.5, 0.5, 1.0);
 }
 
-static void reshape_func(int width, int height) {
+static void reshape_func(int width, int height) 
+{
 	glViewport(0, 0, width, height);
 	camera.aspect = static_cast<double>(width) / height;
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixd(&camera.projection()[0][0]);
 }
 
-static void mouseWheel_func(int wheel, int direction, int x, int y) {
-	camera.transform().translate( vec3(0, 0, direction * 0.1));
+static void mouseWheel_func(int wheel, int direction, int x, int y) 
+{
+	camera.onMouseWheel(direction);
 }
 
-int main(int argc, char* argv[]) {
-	// Iniit window and context
+static void mouse_func(int button, int state, int x, int y) 
+{
+	camera.onMouseButton(button, state, x, y);
+}
+
+static void motion_func(int x, int y) 
+{
+	camera.onMouseMove(x, y);
+}
+
+static void passiveMotion_func(int x, int y) 
+{
+	camera.onMouseMove(x, y);
+}
+
+static void keyboard_func(unsigned char key, int x, int y) 
+{
+	if (key == 27) { 
+		exit(0);
+	}
+	camera.onKeyDown(key);
+}
+
+static void keyboardUp_func(unsigned char key, int x, int y) 
+{
+	camera.onKeyUp(key);
+}
+
+static void special_func(int key, int x, int y) 
+{
+	camera.onSpecialKeyDown(key);
+}
+
+static void specialUp_func(int key, int x, int y) 
+{
+	camera.onSpecialKeyUp(key);
+}
+
+int main(int argc, char* argv[]) 
+{
+	// Init window and context
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowSize(1280, 720);
@@ -85,13 +138,20 @@ int main(int argc, char* argv[]) {
 
 	// Init camera
 	camera.transform().pos() = vec3(0, 1, 4);
-	camera.transform().rotate(glm::radians(180.0), vec3(0, 1, 0));
+	camera.orbitTarget = vec3(0, 0.25, 0); // Center of scene
 
 	// Set Glut callbacks
 	glutDisplayFunc(display_func);
 	glutIdleFunc(glutPostRedisplay);
 	glutReshapeFunc(reshape_func);
 	glutMouseWheelFunc(mouseWheel_func);
+	glutMouseFunc(mouse_func);
+	glutMotionFunc(motion_func);
+	glutPassiveMotionFunc(passiveMotion_func);
+	glutKeyboardFunc(keyboard_func);
+	glutKeyboardUpFunc(keyboardUp_func);
+	glutSpecialFunc(special_func);
+	glutSpecialUpFunc(specialUp_func);
 
 	// Enter glut main loop
 	glutMainLoop();

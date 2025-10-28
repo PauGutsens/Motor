@@ -16,6 +16,7 @@ class Transform {
 
 public:
 	const auto& mat() const { return _mat; }
+	auto& mat_mutable() { return _mat; }
 	const auto& left() const { return _left; }
 	const auto& up() const { return _up; }
 	const auto& fwd() const { return _fwd; }
