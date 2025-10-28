@@ -362,8 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# vcpkg local (gestor de paquetes C++ que no queremos commitear entero)
-vcpkg/
-
 # Installed packages
 /vcpkg_installed
