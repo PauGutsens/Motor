@@ -11,7 +11,6 @@ void GameObject::draw() const {
     glPushMatrix();
     glMultMatrixd(glm::value_ptr(transform.mat()));
 
-    // Draw selection outline if selected
     if (isSelected) {
         glDisable(GL_LIGHTING);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

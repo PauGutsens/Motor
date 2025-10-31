@@ -24,10 +24,8 @@ static bool running = true;
 static vector<shared_ptr<GameObject>> gameObjects;
 static shared_ptr<GameObject> selectedGameObject = nullptr;
 
-// Helper function to get the Assets path relative to the executable
 static string getAssetsPath() {
-    // Simple approach: assume Assets is in the same directory as executable
-    // or one level up
+    
     string paths[] = {
         "Assets",
         "../Assets",
@@ -35,11 +33,11 @@ static string getAssetsPath() {
     };
 
     for (const auto& p : paths) {
-        // Simple check - try to use it
+        
         return p;
     }
 
-    return "Assets"; // Fallback
+    return "Assets"; 
 }
 
 static void loadBakerHouse() {
@@ -58,7 +56,6 @@ static void loadBakerHouse() {
 
     cout << "BakerHouse loaded successfully with " << meshes.size() << " meshes." << endl;
 
-    // Create a GameObject for each mesh
     for (size_t i = 0; i < meshes.size(); i++) {
         auto gameObject = make_shared<GameObject>("BakerHouse_" + to_string(i));
         gameObject->setMesh(meshes[i]);
@@ -135,7 +132,6 @@ static void handleDropFile(const string& filepath) {
 
     string extension = filepath.substr(dotPos);
 
-    // Convert extension to lowercase
     transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
     if (extension == ".fbx") {
@@ -176,14 +172,12 @@ static void draw_floorGrid(int size, double step)
 
 static void updateProjection(int width, int height)
 {
-    // Keep a 16:9 aspect
     double targetAspect = 16.0 / 9.0;
     int viewportWidth = width;
     int viewportHeight = height;
     int viewportX = 0;
     int viewportY = 0;
 
-    // Calculate the viewport size
     double currentAspect = static_cast<double>(width) / height;
 
     if (currentAspect > targetAspect) {
@@ -195,7 +189,6 @@ static void updateProjection(int width, int height)
         viewportY = (height - viewportHeight) / 2;
     }
 
-    // Set up the viewport and update
     glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
     camera.aspect = targetAspect;
     glMatrixMode(GL_PROJECTION);
@@ -228,7 +221,6 @@ static void handle_input() {
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
             camera.onMouseButton(event.button.button, 1, event.button.x, event.button.y);
 
-            // Simple selection on left click
             if (event.button.button == SDL_BUTTON_LEFT && !gameObjects.empty()) {
                 if (selectedGameObject) {
                     selectedGameObject->isSelected = false;
@@ -281,7 +273,6 @@ static void handle_input() {
         }
 
         case SDL_EVENT_DROP_POSITION:
-            // Se llama mientras se arrastra sobre la ventana
             break;
 
         case SDL_EVENT_DROP_COMPLETE:
