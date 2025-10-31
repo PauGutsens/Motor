@@ -5,6 +5,10 @@
 #include <SDL3/SDL_opengl.h>
 #include "Camera.h"
 #include <chrono>
+#include "backends/imgui/imgui_impl_sdl3.h"
+#include "backends/imgui/imgui_impl_opengl3.h"
+#include "EditorWindows.h"
+
 using namespace std;
 
 static Camera camera;
@@ -12,6 +16,7 @@ static auto lastFrameTime = chrono::high_resolution_clock::now();
 SDL_Window* window = nullptr;
 static SDL_GLContext glContext = nullptr;
 static bool running = true;
+static EditorWindows editorWindows;
 
 static void draw_triangle(const glm::u8vec3& color, const vec3& center, double size) 
 {
@@ -68,6 +73,12 @@ static void updateProjection(int width, int height)
 static void handle_input() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        ImGui_ImplSDL3_ProcessEvent(&event);
+   
+        // Skip camera controls if ImGui wants to capture mouse/keyboard
+   if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard)
+ continue;
+  
         switch (event.type) {
             case SDL_EVENT_QUIT:
                 running = false;
@@ -108,7 +119,7 @@ static void handle_input() {
 
 static void render() {
     auto currentTime = chrono::high_resolution_clock::now();
- double deltaTime = chrono::duration<double>(currentTime - lastFrameTime).count();
+    double deltaTime = chrono::duration<double>(currentTime - lastFrameTime).count();
     lastFrameTime = currentTime;
 
     camera.update(deltaTime);
@@ -122,6 +133,8 @@ static void render() {
     draw_triangle(Colors::Red, vec3(-1, 0.25, 0), 0.5);
     draw_triangle(Colors::Green, vec3(0, 0.5, 0.25), 0.5);
     draw_triangle(Colors::Blue, vec3(1, -0.5, -0.25), 0.5);
+
+    editorWindows.render();
 
     SDL_GL_SwapWindow(window);
 }
@@ -150,7 +163,7 @@ int main(int argc, char* argv[])
 {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         cout << "SDL could not be initialized! SDL_Error: " << SDL_GetError() << endl;
-        return EXIT_FAILURE;
+  return EXIT_FAILURE;
     }
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
@@ -164,19 +177,20 @@ int main(int argc, char* argv[])
     // Create main window
     window = SDL_CreateWindow("Motor", screenWidth, screenHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-    if (!window) {
-     cout << "Window could not be created! SDL_Error: " << SDL_GetError() << endl;
-        return EXIT_FAILURE;
+  if (!window) {
+        cout << "Window could not be created! SDL_Error: " << SDL_GetError() << endl;
+   return EXIT_FAILURE;
     }
 
     // Set up OpenGL
-    glContext = SDL_GL_CreateContext(window);
+  glContext = SDL_GL_CreateContext(window);
     if (!glContext) {
-        cout << "OpenGL context could not be created! SDL_Error: " << SDL_GetError() << endl;
+   cout << "OpenGL context could not be created! SDL_Error: " << SDL_GetError() << endl;
         return EXIT_FAILURE;
     }
 
     init_opengl();
+    editorWindows.init(window, glContext);
 
     // Set up camera starting position
     camera.transform().pos() = vec3(0, 1, 4);
@@ -192,9 +206,10 @@ int main(int argc, char* argv[])
     }
 
     // Clean up
+    editorWindows.shutdown();
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
-    SDL_Quit();
+SDL_Quit();
 
     return EXIT_SUCCESS;
 }

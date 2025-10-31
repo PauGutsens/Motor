@@ -70,12 +70,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="backends\imgui\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="backends\imgui\imgui_impl_sdl3.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="EditorWindows.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="backends\imgui\imgui_impl_opengl3.h" />
+    <ClInclude Include="backends\imgui\imgui_impl_sdl3.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="EditorWindows.h" />
     <ClInclude Include="Transform.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>
