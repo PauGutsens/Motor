@@ -1,13 +1,17 @@
 #include <iostream>
 #include <glm/glm.hpp>
 #include <GL/glew.h>
-#include <GL/freeglut.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 #include "Camera.h"
 #include <chrono>
 using namespace std;
 
 static Camera camera;
 static auto lastFrameTime = chrono::high_resolution_clock::now();
+SDL_Window* window = nullptr;
+static SDL_GLContext glContext = nullptr;
+static bool running = true;
 
 static void draw_triangle(const glm::u8vec3& color, const vec3& center, double size) 
 {
@@ -33,128 +37,164 @@ static void draw_floorGrid(int size, double step)
 	glEnd();
 }
 
-static void display_func() 
+static void updateProjection(int width, int height) 
 {
-	auto currentTime = chrono::high_resolution_clock::now();
-	double deltaTime = chrono::duration<double>(currentTime - lastFrameTime).count();
-	lastFrameTime = currentTime;
+	// Keep a 16:9 aspect
+    double targetAspect = 16.0 / 9.0;
+    int viewportWidth = width;
+    int viewportHeight = height;
+    int viewportX = 0;
+    int viewportY = 0;
 
-	camera.update(deltaTime);
+    // Calculate the viewport size
+    double currentAspect = static_cast<double>(width) / height;
+    
+    if (currentAspect > targetAspect) {
+        viewportWidth = static_cast<int>(height * targetAspect);
+        viewportX = (width - viewportWidth) / 2;
+    }
+    else {
+        viewportHeight = static_cast<int>(width / targetAspect);
+        viewportY = (height - viewportHeight) / 2;
+    }
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // Set up the viewport and update
+    glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+    camera.aspect = targetAspect;
+    glMatrixMode(GL_PROJECTION);
+    glLoadMatrixd(&camera.projection()[0][0]);
+}
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixd(&camera.view()[0][0]);
+static void handle_input() {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_EVENT_QUIT:
+                running = false;
+                    break;
 
-	draw_floorGrid(16, 0.25);
-	draw_triangle(Colors::Red, vec3(-1, 0.25, 0), 0.5);
-	draw_triangle(Colors::Green, vec3(0, 0.5, 0.25), 0.5);
-	draw_triangle(Colors::Blue, vec3(1, -0.5, -0.25), 0.5);
+            case SDL_EVENT_KEY_DOWN:
+                if (event.key.scancode == SDL_SCANCODE_ESCAPE) {running = false;} 
+                camera.onKeyDown(event.key.scancode);
+                    break;
 
-	glutSwapBuffers();
+            case SDL_EVENT_KEY_UP:
+                camera.onKeyUp(event.key.scancode);
+                    break;
+
+            case SDL_EVENT_MOUSE_WHEEL:
+                camera.onMouseWheel(event.wheel.y);
+                    break;
+
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                camera.onMouseButton(event.button.button, 1, event.button.x, event.button.y);
+                    break;
+
+            case SDL_EVENT_MOUSE_BUTTON_UP:
+                camera.onMouseButton(event.button.button, 0, event.button.x, event.button.y);
+                    break;
+            case SDL_EVENT_MOUSE_MOTION:
+                camera.onMouseMove(event.motion.x, event.motion.y);
+                    break;
+            case SDL_EVENT_WINDOW_RESIZED: {
+                int width, height;
+                SDL_GetWindowSize(window, &width, &height);
+                updateProjection(width, height);
+            }
+            break;
+        }
+    }
+}
+
+static void render() {
+    auto currentTime = chrono::high_resolution_clock::now();
+ double deltaTime = chrono::duration<double>(currentTime - lastFrameTime).count();
+    lastFrameTime = currentTime;
+
+    camera.update(deltaTime);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadMatrixd(&camera.view()[0][0]);
+
+    draw_floorGrid(16, 0.25);
+    draw_triangle(Colors::Red, vec3(-1, 0.25, 0), 0.5);
+    draw_triangle(Colors::Green, vec3(0, 0.5, 0.25), 0.5);
+    draw_triangle(Colors::Blue, vec3(1, -0.5, -0.25), 0.5);
+
+    SDL_GL_SwapWindow(window);
 }
 
 static void init_opengl() {
-	glewInit();
+    glewInit();
 
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-	glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
-	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+    glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 
-	glEnable(GL_POLYGON_SMOOTH);
-	glEnable(GL_LINE_SMOOTH);
-	glEnable(GL_POINT_SMOOTH);
+    glEnable(GL_POLYGON_SMOOTH);
+    glEnable(GL_LINE_SMOOTH);
+    glEnable(GL_POINT_SMOOTH);
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
 
-	glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
 
-	glClearColor(0.5, 0.5, 0.5, 1.0);
-}
-
-static void reshape_func(int width, int height) 
-{
-	glViewport(0, 0, width, height);
-	camera.aspect = static_cast<double>(width) / height;
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixd(&camera.projection()[0][0]);
-}
-
-static void mouseWheel_func(int wheel, int direction, int x, int y) 
-{
-	camera.onMouseWheel(direction);
-}
-
-static void mouse_func(int button, int state, int x, int y) 
-{
-	camera.onMouseButton(button, state, x, y);
-}
-
-static void motion_func(int x, int y) 
-{
-	camera.onMouseMove(x, y);
-}
-
-static void passiveMotion_func(int x, int y) 
-{
-	camera.onMouseMove(x, y);
-}
-
-static void keyboard_func(unsigned char key, int x, int y) 
-{
-	if (key == 27) { 
-		exit(0);
-	}
-	camera.onKeyDown(key);
-}
-
-static void keyboardUp_func(unsigned char key, int x, int y) 
-{
-	camera.onKeyUp(key);
-}
-
-static void special_func(int key, int x, int y) 
-{
-	camera.onSpecialKeyDown(key);
-}
-
-static void specialUp_func(int key, int x, int y) 
-{
-	camera.onSpecialKeyUp(key);
+    glClearColor(0.5, 0.5, 0.5, 1.0);
 }
 
 int main(int argc, char* argv[]) 
 {
-	// Init window and context
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
-	glutInitWindowSize(1280, 720);
-	glutCreateWindow("Glut Simple Example");
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        cout << "SDL could not be initialized! SDL_Error: " << SDL_GetError() << endl;
+        return EXIT_FAILURE;
+    }
 
-	// Init OpenGL
-	init_opengl();
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-	// Init camera
-	camera.transform().pos() = vec3(0, 1, 4);
-	camera.orbitTarget = vec3(0, 0.25, 0); // Center of scene
+    int screenWidth = 1280;
+    int screenHeight = 720;
 
-	// Set Glut callbacks
-	glutDisplayFunc(display_func);
-	glutIdleFunc(glutPostRedisplay);
-	glutReshapeFunc(reshape_func);
-	glutMouseWheelFunc(mouseWheel_func);
-	glutMouseFunc(mouse_func);
-	glutMotionFunc(motion_func);
-	glutPassiveMotionFunc(passiveMotion_func);
-	glutKeyboardFunc(keyboard_func);
-	glutKeyboardUpFunc(keyboardUp_func);
-	glutSpecialFunc(special_func);
-	glutSpecialUpFunc(specialUp_func);
+    // Create main window
+    window = SDL_CreateWindow("Motor", screenWidth, screenHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-	// Enter glut main loop
-	glutMainLoop();
+    if (!window) {
+     cout << "Window could not be created! SDL_Error: " << SDL_GetError() << endl;
+        return EXIT_FAILURE;
+    }
 
-	return EXIT_SUCCESS;
+    // Set up OpenGL
+    glContext = SDL_GL_CreateContext(window);
+    if (!glContext) {
+        cout << "OpenGL context could not be created! SDL_Error: " << SDL_GetError() << endl;
+        return EXIT_FAILURE;
+    }
+
+    init_opengl();
+
+    // Set up camera starting position
+    camera.transform().pos() = vec3(0, 1, 4);
+    camera.orbitTarget = vec3(0, 0.25, 0);
+
+    updateProjection(screenWidth, screenHeight);
+
+    // Main game loop
+    while (running) {
+        handle_input();
+        render();
+        SDL_Delay(1);
+    }
+
+    // Clean up
+    SDL_GL_DestroyContext(glContext);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+
+    return EXIT_SUCCESS;
 }
