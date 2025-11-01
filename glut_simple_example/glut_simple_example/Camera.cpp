@@ -1,4 +1,4 @@
-#include "Camera.h"
+﻿#include "Camera.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -29,6 +29,12 @@ void Camera::onMouseButton(int button, int state, int x, int y)
             SDL_CaptureMouse(true);
         }
         else {SDL_CaptureMouse(false); }
+
+    }
+    else if (button == SDL_BUTTON_MIDDLE) {     // ⭐ 新增：中键按下
+        _middleMouseDown = (state == 1);
+        if (_middleMouseDown) { _lastMouseX = x; _lastMouseY = y; }
+        
     }
     else if (button == SDL_BUTTON_LEFT) {
         _leftMouseDown = (state == 1);
@@ -55,7 +61,14 @@ void Camera::onMouseMove(int x, int y)
         _lastMouseX = x;
         _lastMouseY = y;
     }
-    else if (_leftMouseDown && _altPressed) 
+    if ((_rightMouseDown && _shiftPressed) || _middleMouseDown) {
+        handlePan(deltaX, deltaY);
+        _lastMouseX = x;
+        _lastMouseY = y;
+        
+    }
+       // ⭐ 规则2：右键拖动 = 第一人称视角转向
+       else if (_rightMouseDown && !_altPressed)
     {
         handleOrbit(deltaX, deltaY);
         _lastMouseX = x;
@@ -176,6 +189,21 @@ void Camera::handleFPSMovement(double deltaTime)
         _transform.translate(movement);
     }
 }
+
+void Camera::handlePan(int deltaX, int deltaY)
+{
+    // 鼠标右移 -> 往右平移；鼠标上移 -> 往上平移
+    // 注意：right = -left()
+    vec3 right = -_transform.left();
+    vec3 up = _transform.up();
+
+    vec3 delta = (-deltaX * panSpeed) * right + (deltaY * panSpeed) * up;
+    _transform.translate(delta);
+
+    // 如果你希望“轨道目标”也跟着一起平移（更符合轨道相机手感），就把下一行解注释：
+    // orbitTarget += delta;
+}
+
 
 void Camera::handleOrbit(int deltaX, int deltaY) 
 {

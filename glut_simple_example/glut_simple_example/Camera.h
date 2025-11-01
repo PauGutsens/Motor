@@ -13,6 +13,7 @@ public:
 	double moveSpeed = 2.0;
 	double lookSensitivity = 0.003;
 	double zoomSpeed = 0.5;
+	double panSpeed = 0.01;
 	double orbitDistance = 5.0;
 	vec3 orbitTarget = vec3(0, 0, 0);
 
@@ -21,6 +22,7 @@ private:
 
 	bool _rightMouseDown = false;
 	bool _leftMouseDown = false;
+	bool _middleMouseDown = false;
 	bool _altPressed = false;
 	bool _shiftPressed = false;
 	int _lastMouseX = 0;
@@ -55,4 +57,5 @@ private:
 	void updateOrientation();
 	void handleFPSMovement(double deltaTime);
 	void handleOrbit(int deltaX, int deltaY);
+	void handlePan(int deltaX, int deltaY);
 };
