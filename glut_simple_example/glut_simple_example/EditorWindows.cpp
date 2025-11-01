@@ -1,14 +1,14 @@
 #include "EditorWindows.h"
-#include "GameObject.h"     // 需要完整类型：go->name / go->transform
+#include "GameObject.h"     
 #include "Transform.h"
 
 #include <SDL3/SDL.h>
 #include "imgui.h"
-#include "imgui_impl_sdl3.h"      // 用你工程里“Header Files”那两个头
-#include "imgui_impl_opengl3.h"   // （不是 backends/... 版）
+#include "imgui_impl_sdl3.h"      
+#include "imgui_impl_opengl3.h"   
 
-#include <assimp/version.h>       // Assimp 版本
-#include <IL/il.h>                // DevIL 版本
+#include <assimp/version.h>       
+#include <IL/il.h>                
 
 #include <cmath>
 #include <cstring>
