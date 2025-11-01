@@ -1,7 +1,7 @@
 #include "TextureLoader.h"
 #include <IL/il.h>
 #include <IL/ilu.h>
-#include <SDL3/SDL_opengl.h>  // 或你项目里使用的 GL 头（<GL/glew.h> 也可）
+#include <SDL3/SDL_opengl.h>  
 
 static bool g_devILInited = false;
 
@@ -25,7 +25,7 @@ unsigned int LoadTexture2D(const std::string& path) {
         return 0;
     }
 
-    // 转为 RGBA8
+    // 转为 RGBA8 Convertir a RGBA8
     ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
 
     const int w = ilGetInteger(IL_IMAGE_WIDTH);
@@ -36,16 +36,16 @@ unsigned int LoadTexture2D(const std::string& path) {
         return 0;
     }
 
-    // 生成 OpenGL 纹理
+    // 生成 OpenGL 纹理 Generar texturas OpenGL
     GLuint tex = 0;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // 不调用 glGenerateMipmap（需要扩展加载器）
+    // 不调用 glGenerateMipmap（需要扩展加载器）No llame a glGenerateMipmap (requiere un cargador de extensiones).
 
     ilBindImage(0);
     ilDeleteImages(1, &img);
-    return tex; // 0 表示失败
+    return tex; // 0 表示失败 0 indica fallo
 }
