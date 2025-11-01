@@ -19,6 +19,8 @@ public:
     GLuint VBO = 0;
     GLuint EBO = 0;
     GLuint textureID = 0;
+    void setTexture(unsigned int tex) { textureId = tex; }
+    unsigned int getTexture() const { return textureId; }
 
     Mesh() = default;
     Mesh(const std::vector<Vertex>& verts, const std::vector<unsigned int>& inds);
@@ -31,4 +33,5 @@ public:
 
 private:
     bool _isSetup = false;
+    unsigned int textureId = 0;
 };

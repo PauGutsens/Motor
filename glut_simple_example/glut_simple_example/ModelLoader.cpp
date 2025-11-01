@@ -6,6 +6,11 @@
 #include <IL/ilu.h>
 #include <iostream>
 #include <filesystem>
+#include <assimp/material.h>
+#include "TextureLoader.h"
+#include "Mesh.h"            // 需要 setTexture()
+#include <filesystem>        // 用来拼接目录
+
 
 
 
@@ -134,4 +139,27 @@ GLuint ModelLoader::loadTexture(const std::string& path) {
     std::cout << "Loaded texture: " << path << " (ID: " << textureID << ")" << std::endl;
 
     return textureID;
+}
+static std::string DirName(const std::string& file) {
+    std::filesystem::path p(file);
+    return p.has_parent_path() ? p.parent_path().string() : std::string(".");
+}
+
+// 给 mesh 设置漫反射贴图（若材质有）
+static void AssignDiffuseTextureIfAny(const aiMaterial* mat,
+    const std::string& modelPath,
+    const std::shared_ptr<Mesh>& mesh)
+{
+    if (!mat || !mesh) return;
+
+    aiString tex;
+    if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &tex) == AI_SUCCESS) {
+        std::string base = DirName(modelPath);
+        std::string full = (std::filesystem::path(base) / tex.C_Str()).string();
+
+        if (unsigned int t = LoadTexture2D(full)) {
+            mesh->setTexture(t);
+        }
+        // 没找到就保持0，不影响绘制（仅无纹理）
+    }
 }

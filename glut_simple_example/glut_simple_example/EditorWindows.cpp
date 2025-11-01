@@ -1,9 +1,19 @@
 #include "EditorWindows.h"
-#include "imgui.h"
-#include "backends/imgui/imgui_impl_sdl3.h"
-#include "backends/imgui/imgui_impl_opengl3.h"
+#include "GameObject.h"     // 需要完整类型：go->name / go->transform
+#include "Transform.h"
+
 #include <SDL3/SDL.h>
-#include <GL/glew.h>
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"      // 用你工程里“Header Files”那两个头
+#include "imgui_impl_opengl3.h"   // （不是 backends/... 版）
+
+#include <assimp/version.h>       // Assimp 版本
+#include <IL/il.h>                // DevIL 版本
+
+#include <cmath>
+#include <cstring>
+#include <string>
+
 
 EditorWindows::EditorWindows() {}
 
@@ -73,8 +83,21 @@ void EditorWindows::renderConsoleWindow() {
 void EditorWindows::renderSettingsWindow() {
     if (show_settings) {
         ImGui::Begin("Settings", &show_settings);
-        // Placeholder
-        ImGui::Text("Settings Window");
+
+        static uint64_t last = SDL_GetPerformanceCounter();
+        static float fps = 0.0f;
+        uint64_t now = SDL_GetPerformanceCounter();
+        float dt = (float)((now - last) / (double)SDL_GetPerformanceFrequency());
+        last = now;
+        if (dt > 0) fps = 0.9f * fps + 0.1f * (1.0f / dt);
+
+        ImGui::Text("FPS: %.1f", fps);
+        ImGui::Text("OpenGL: %s", (const char*)glGetString(GL_VERSION));
+        ImGui::Text("Assimp: %d.%d.%d",
+            aiGetVersionMajor(), aiGetVersionMinor(), aiGetVersionPatch());
+
+        ImGui::Text("DevIL: %d.%d.%d", IL_VERSION / 100, (IL_VERSION / 10) % 10, IL_VERSION % 10);
+
         ImGui::End();
     }
 }
@@ -82,8 +105,20 @@ void EditorWindows::renderSettingsWindow() {
 void EditorWindows::renderHierarchyWindow() {
     if (show_hierarchy) {
         ImGui::Begin("Hierarchy", &show_hierarchy);
-        // Placeholder
-        ImGui::Text("Hierarchy Window");
+
+        if (!sceneObjects) {
+            ImGui::TextUnformatted("No scene bound.");
+        }
+        else {
+            for (auto& go : *sceneObjects) {
+                bool selectedNow = (selected && *selected && (*selected).get() == go.get());
+                if (ImGui::Selectable(go->name.c_str(), selectedNow)) {
+                    if (selected && *selected) (*selected)->isSelected = false;
+                    if (selected) { *selected = go; go->isSelected = true; }
+                }
+            }
+        }
+
         ImGui::End();
     }
 }
@@ -91,8 +126,37 @@ void EditorWindows::renderHierarchyWindow() {
 void EditorWindows::renderInspectorWindow() {
     if (show_inspector) {
         ImGui::Begin("Inspector", &show_inspector);
-        // Placeholder
-        ImGui::Text("Inspector Window");
+
+        if (!(selected && *selected)) {
+            ImGui::TextUnformatted("No object selected.");
+            ImGui::End();
+            return;
+        }
+
+        auto& go = *(*selected);
+        ImGui::Text("Name: %s", go.name.c_str());
+        ImGui::Separator();
+
+        // Position
+        auto& p = go.transform.pos();
+        float v[3] = { (float)p.x, (float)p.y, (float)p.z };
+        if (ImGui::DragFloat3("Position", v, 0.05f)) {
+            p.x = v[0]; p.y = v[1]; p.z = v[2];
+        }
+
+        // Rotation
+        static float deg[3] = { 0,0,0 };
+        static float last[3] = { 0,0,0 };
+        if (ImGui::DragFloat3("Rotate XYZ (deg)", deg, 0.2f)) {
+            float dx = (deg[0] - last[0]) * 0.017453292f;
+            float dy = (deg[1] - last[1]) * 0.017453292f;
+            float dz = (deg[2] - last[2]) * 0.017453292f;
+            if (fabsf(dx) > 1e-6f) go.transform.rotate(dx, { 1,0,0 });
+            if (fabsf(dy) > 1e-6f) go.transform.rotate(dy, { 0,1,0 });
+            if (fabsf(dz) > 1e-6f) go.transform.rotate(dz, { 0,0,1 });
+            memcpy(last, deg, sizeof(deg));
+        }
+
         ImGui::End();
     }
 }

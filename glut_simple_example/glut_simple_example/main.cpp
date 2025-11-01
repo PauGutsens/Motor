@@ -11,9 +11,11 @@
 #include <memory>
 #include <string>
 #include <algorithm>
+#include "EditorWindows.h"
 
 using namespace std;
 
+static EditorWindows editor;
 static Camera camera;
 static auto lastFrameTime = chrono::high_resolution_clock::now();
 SDL_Window* window = nullptr;
@@ -308,6 +310,10 @@ static void render() {
     draw_triangle(Colors::Green, vec3(0, 0.5, 0.25), 0.5);
     draw_triangle(Colors::Blue, vec3(1, -0.5, -0.25), 0.5);
 
+    // 以后在这里调用 editor.draw();
+    // ...你自己的场景都画完后
+    editor.render();          
+
     SDL_GL_SwapWindow(window);
 }
 
@@ -374,6 +380,9 @@ int main(int argc, char* argv[])
 
     // Set up OpenGL
     glContext = SDL_GL_CreateContext(window);
+    editor.init(window, glContext);                 // 初始化 ImGui 上下文
+    editor.setScene(&gameObjects, &selectedGameObject);  // 把场景指针传给编辑器
+
     if (!glContext) {
         cout << "OpenGL context could not be created! SDL_Error: " << SDL_GetError() << endl;
         return EXIT_FAILURE;
@@ -416,6 +425,7 @@ int main(int argc, char* argv[])
     gameObjects.clear();
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
+    editor.shutdown();
     SDL_Quit();
 
     return EXIT_SUCCESS;

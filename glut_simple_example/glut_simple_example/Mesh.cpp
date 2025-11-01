@@ -44,6 +44,11 @@ void Mesh::setupMesh() {
 }
 
 void Mesh::draw() const {
+    if (textureId != 0) {
+        glEnable(GL_TEXTURE_2D);                // 若你用固定管线
+        glActiveTexture(GL_TEXTURE0);           // 若你用着色器，也保留这行
+        glBindTexture(GL_TEXTURE_2D, textureId);
+    }
     if (!_isSetup || VAO == 0) return;
 
     if (textureID != 0) {
