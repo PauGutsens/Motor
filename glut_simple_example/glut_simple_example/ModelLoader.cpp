@@ -1,165 +1,158 @@
 #include "ModelLoader.h"
+#include "TextureLoader.h"
+#include "Mesh.h"
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-#include <IL/il.h>
-#include <IL/ilu.h>
-#include <iostream>
-#include <filesystem>
 #include <assimp/material.h>
-#include "TextureLoader.h"
-#include "Mesh.h"            // 需要 setTexture()
-#include <filesystem>        // 用来拼接目录
 
+#include <GL/glew.h>
+#include <filesystem>
+#include <iostream>
+#include <memory>
+#include <vector>
+#include <string>
 
+using std::string;
+using std::vector;
+using std::shared_ptr;
+using std::make_shared;
+using std::cout;
+using std::cerr;
+using std::endl;
 
+namespace {
+
+    // 取得文件所在目录
+    static inline std::string DirName(const std::string& p) {
+        std::filesystem::path fp(p);
+        return fp.has_parent_path() ? fp.parent_path().string() : std::string(".");
+    }
+
+    // 给 mesh 绑定漫反射贴图（若材质包含）
+    static void AssignDiffuseTextureIfAny(const aiMaterial* mat,
+        const std::string& modelPath,
+        const shared_ptr<Mesh>& mesh) {
+        if (!mat || !mesh) return;
+
+        aiString tex;
+        if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &tex) == AI_SUCCESS) {
+            std::filesystem::path full = std::filesystem::path(DirName(modelPath)) / tex.C_Str();
+
+            EnsureDevILInited();
+            if (unsigned int t = LoadTexture2D(full.string())) {
+                mesh->setTexture(t);
+                return;
+            }
+
+            // 兜底：依原始字符串再尝试一次（可能是绝对路径）
+            if (unsigned int t2 = LoadTexture2D(tex.C_Str())) {
+                mesh->setTexture(t2);
+            }
+        }
+    }
+
+} // namespace
+
+// ============ 这里是“按声明实现”的类成员 ============
+// 注意：签名必须与 ModelLoader.h 完全一致
+std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* scenePtr) {
+    aiMesh* mesh = static_cast<aiMesh*>(meshPtr);
+    // const aiScene* scene = static_cast<const aiScene*>(scenePtr); // 当前不需要
+
+    if (!mesh) return nullptr;
+
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+
+    vertices.reserve(mesh->mNumVertices);
+    for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
+        Vertex v{};
+
+        // position（双精度容器：vec3 = glm::dvec3）
+        v.position.x = mesh->mVertices[i].x;
+        v.position.y = mesh->mVertices[i].y;
+        v.position.z = mesh->mVertices[i].z;
+
+        // normal
+        if (mesh->HasNormals()) {
+            v.normal.x = mesh->mNormals[i].x;
+            v.normal.y = mesh->mNormals[i].y;
+            v.normal.z = mesh->mNormals[i].z;
+        }
+        else {
+            v.normal = vec3(0.0, 0.0, 1.0);
+        }
+
+        // texcoord（第一套 UV；你的 Vertex 使用 glm::vec2）
+        if (mesh->mTextureCoords[0]) {
+            v.texCoord.x = mesh->mTextureCoords[0][i].x;
+            v.texCoord.y = mesh->mTextureCoords[0][i].y;
+        }
+        else {
+            v.texCoord = glm::vec2(0.0f, 0.0f);
+        }
+
+        vertices.push_back(v);
+    }
+
+    // indices
+    for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
+        const aiFace& face = mesh->mFaces[i];
+        for (unsigned int j = 0; j < face.mNumIndices; ++j) {
+            indices.push_back(face.mIndices[j]);
+        }
+    }
+
+    auto result = std::make_shared<Mesh>(vertices, indices);
+    result->setupMesh();
+    return result;
+}
+
+// ============ 公有接口 ============
 
 std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& path) {
     std::vector<std::shared_ptr<Mesh>> meshes;
 
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path,
+    const aiScene* scene = importer.ReadFile(
+        path.c_str(),
         aiProcess_Triangulate |
-        aiProcess_FlipUVs |
-        aiProcess_GenNormals |
-        aiProcess_CalcTangentSpace);
+        aiProcess_GenSmoothNormals |
+        aiProcess_ImproveCacheLocality |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_RemoveRedundantMaterials |
+        aiProcess_OptimizeMeshes |
+        aiProcess_CalcTangentSpace |
+        aiProcess_ValidateDataStructure
+    );
 
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        std::cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
+    if (!scene || !scene->mRootNode || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) != 0) {
+        std::cerr << "Assimp error while loading \"" << path << "\": "
+            << importer.GetErrorString() << std::endl;
         return meshes;
     }
 
-    std::cout << "Loading model: " << path << std::endl;
-    std::cout << "Number of meshes: " << scene->mNumMeshes << std::endl;
+    meshes.reserve(scene->mNumMeshes);
+    for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
+        aiMesh* am = scene->mMeshes[i];
+        auto m = ModelLoader::processMesh(am, scene);     // 调用类的静态成员
+        if (!m) continue;
 
-    for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
-        aiMesh* mesh = scene->mMeshes[i];
-        auto processedMesh = processMesh(mesh, scene);
-        if (processedMesh) {
-            meshes.push_back(processedMesh);
+        // 若该子网格有关联材质，尝试绑定漫反射贴图
+        if (am->mMaterialIndex < scene->mNumMaterials) {
+            const aiMaterial* mat = scene->mMaterials[am->mMaterialIndex];
+            AssignDiffuseTextureIfAny(mat, path, m);
         }
+
+        meshes.push_back(m);
     }
 
     return meshes;
 }
 
-std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* scenePtr) {
-    aiMesh* mesh = static_cast<aiMesh*>(meshPtr);
-    const aiScene* scene = static_cast<const aiScene*>(scenePtr);
-
-    std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
-
-    // Process vertices
-    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
-        Vertex vertex;
-
-        // Position
-        vertex.position.x = mesh->mVertices[i].x;
-        vertex.position.y = mesh->mVertices[i].y;
-        vertex.position.z = mesh->mVertices[i].z;
-
-        // Normals
-        if (mesh->HasNormals()) {
-            vertex.normal.x = mesh->mNormals[i].x;
-            vertex.normal.y = mesh->mNormals[i].y;
-            vertex.normal.z = mesh->mNormals[i].z;
-        }
-        else {
-            vertex.normal = vec3(0.0, 1.0, 0.0);
-        }
-
-        // Texture coordinates
-        if (mesh->mTextureCoords[0]) {
-            vertex.texCoord.x = mesh->mTextureCoords[0][i].x;
-            vertex.texCoord.y = mesh->mTextureCoords[0][i].y;
-        }
-        else {
-            vertex.texCoord = glm::vec2(0.0f, 0.0f);
-        }
-
-        vertices.push_back(vertex);
-    }
-
-    // Process indices
-    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
-        aiFace face = mesh->mFaces[i];
-        for (unsigned int j = 0; j < face.mNumIndices; j++) {
-            indices.push_back(face.mIndices[j]);
-        }
-    }
-
-    auto resultMesh = std::make_shared<Mesh>(vertices, indices);
-    resultMesh->setupMesh();
-
-    return resultMesh;
-}
-
-GLuint ModelLoader::loadTexture(const std::string& path) {
-    static bool ilInitialized = false;
-    if (!ilInitialized) {
-        ilInit();
-        iluInit();
-        ilInitialized = true;
-    }
-
-    ILuint imageID;
-    ilGenImages(1, &imageID);
-    ilBindImage(imageID);
-
-    if (!ilLoadImage(path.c_str())) {
-        std::cerr << "Failed to load texture: " << path << std::endl;
-        std::cerr << "DevIL error: " << iluErrorString(ilGetError()) << std::endl;
-        ilDeleteImages(1, &imageID);
-        return 0;
-    }
-
-    // Convert image to RGBA format
-    ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
-
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-        ilGetInteger(IL_IMAGE_WIDTH),
-        ilGetInteger(IL_IMAGE_HEIGHT),
-        0, GL_RGBA, GL_UNSIGNED_BYTE,
-        ilGetData());
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    ilDeleteImages(1, &imageID);
-
-    std::cout << "Loaded texture: " << path << " (ID: " << textureID << ")" << std::endl;
-
-    return textureID;
-}
-static std::string DirName(const std::string& file) {
-    std::filesystem::path p(file);
-    return p.has_parent_path() ? p.parent_path().string() : std::string(".");
-}
-
-// 给 mesh 设置漫反射贴图（若材质有）
-static void AssignDiffuseTextureIfAny(const aiMaterial* mat,
-    const std::string& modelPath,
-    const std::shared_ptr<Mesh>& mesh)
-{
-    if (!mat || !mesh) return;
-
-    aiString tex;
-    if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &tex) == AI_SUCCESS) {
-        std::string base = DirName(modelPath);
-        std::string full = (std::filesystem::path(base) / tex.C_Str()).string();
-
-        if (unsigned int t = LoadTexture2D(full)) {
-            mesh->setTexture(t);
-        }
-        // 没找到就保持0，不影响绘制（仅无纹理）
-    }
+unsigned int ModelLoader::loadTexture(const std::string& path) {
+    EnsureDevILInited();
+    return LoadTexture2D(path);
 }

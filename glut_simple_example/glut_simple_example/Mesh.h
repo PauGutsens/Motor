@@ -5,22 +5,25 @@
 #include <string>
 #include <GL/glew.h>
 
+// 顶点：位置/法线为双精度 vec3（与你的 types.h 一致），UV 为 float2
 struct Vertex {
-    vec3 position;
-    vec3 normal;
-    glm::vec2 texCoord;
+    vec3       position;
+    vec3       normal;
+    glm::vec2  texCoord;
 };
 
 class Mesh {
 public:
-    std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
+    std::vector<Vertex>         vertices;
+    std::vector<unsigned int>   indices;
+
+    // GPU 资源
     GLuint VAO = 0;
     GLuint VBO = 0;
     GLuint EBO = 0;
+
+    // 统一仅保留一个纹理字段
     GLuint textureID = 0;
-    void setTexture(unsigned int tex) { textureId = tex; }
-    unsigned int getTexture() const { return textureId; }
 
     Mesh() = default;
     Mesh(const std::vector<Vertex>& verts, const std::vector<unsigned int>& inds);
@@ -28,10 +31,12 @@ public:
 
     void setupMesh();
     void draw() const;
-    void setTexture(GLuint texID);
     void cleanup();
+
+    // 统一接口
+    void setTexture(GLuint texID) { textureID = texID; }
+    unsigned int getTexture() const { return textureID; }
 
 private:
     bool _isSetup = false;
-    unsigned int textureId = 0;
 };

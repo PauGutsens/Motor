@@ -1,4 +1,5 @@
 #include "Mesh.h"
+#include <cstddef>
 #include <iostream>
 
 Mesh::Mesh(const std::vector<Vertex>& verts, const std::vector<unsigned int>& inds)
@@ -18,41 +19,49 @@ void Mesh::setupMesh() {
 
     glBindVertexArray(VAO);
 
+    // VBO
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER,
+        static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)),
+        vertices.data(),
+        GL_STATIC_DRAW);
 
+    // EBO（可为空）
     if (!indices.empty()) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+            static_cast<GLsizeiptr>(indices.size() * sizeof(unsigned int)),
+            indices.data(),
+            GL_STATIC_DRAW);
     }
 
-    // Position attribute
+    // 顶点属性布局：位置(0)/法线(1) 使用 GL_DOUBLE；UV(2) 使用 GL_FLOAT
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex), (void*)0);
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex),
+        reinterpret_cast<const void*>(offsetof(Vertex, position)));
 
-    // Normal attribute
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+    glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex),
+        reinterpret_cast<const void*>(offsetof(Vertex, normal)));
 
-    // TexCoord attribute
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+        reinterpret_cast<const void*>(offsetof(Vertex, texCoord)));
 
     glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    if (!indices.empty()) glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     _isSetup = true;
 }
 
 void Mesh::draw() const {
-    if (textureId != 0) {
-        glEnable(GL_TEXTURE_2D);                // 若你用固定管线
-        glActiveTexture(GL_TEXTURE0);           // 若你用着色器，也保留这行
-        glBindTexture(GL_TEXTURE_2D, textureId);
-    }
     if (!_isSetup || VAO == 0) return;
 
+    // 固定管线兼容：有纹理才启用/绑定
     if (textureID != 0) {
         glEnable(GL_TEXTURE_2D);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureID);
     }
 
@@ -73,22 +82,8 @@ void Mesh::draw() const {
     }
 }
 
-void Mesh::setTexture(GLuint texID) {
-    textureID = texID;
-}
-
 void Mesh::cleanup() {
-    if (VAO != 0) {
-        glDeleteVertexArrays(1, &VAO);
-        VAO = 0;
-    }
-    if (VBO != 0) {
-        glDeleteBuffers(1, &VBO);
-        VBO = 0;
-    }
-    if (EBO != 0) {
-        glDeleteBuffers(1, &EBO);
-        EBO = 0;
-    }
-    _isSetup = false;
+    if (EBO) { glDeleteBuffers(1, &EBO); EBO = 0; }
+    if (VBO) { glDeleteBuffers(1, &VBO); VBO = 0; }
+    if (VAO) { glDeleteVertexArrays(1, &VAO); VAO = 0; }
 }
