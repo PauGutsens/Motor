@@ -27,25 +27,25 @@ static bool running = true;
 static vector<shared_ptr<GameObject>> gameObjects;
 static shared_ptr<GameObject> selectedGameObject = nullptr;
 
-// ====================================================
-// 自动检测最近的 Assets 文件夹（无需手动改路径）
-// ====================================================
+
+// 自动检测最近的 Assets 文件夹（无需手动改路径）Detectar automaticamente la carpeta de Activos mas reciente
+
 static std::string getAssetsPath() {
     namespace fs = std::filesystem;
 
-    // 日志输出：当前工作目录和 SDL 基路径
+    // 日志输出：当前工作目录和 SDL 基路径Salida: Directorio de trabajo actual y ruta base de SDL
     auto cwd = fs::current_path();
     /*char* base = SDL_GetBasePath();
     std::string baseStr = base ? base : "";
     if (base) SDL_free(base);*/
     const char* base = SDL_GetBasePath();
     std::string baseStr = base ? base : "";
-    // SDL3 不需要、也不允许 SDL_free(base);
+    
 
     std::cout << "[Path] CWD        = " << cwd.string() << std::endl;
     std::cout << "[Path] SDL base   = " << baseStr << std::endl;
 
-    // 向上查找6层目录，找到最近的 Assets
+    // 向上查找6层目录，找到最近的 Assets Busca en los 6 niveles superiores del directorio para encontrar los recursos mas recientes.
     auto try_find = [](fs::path start)->std::string {
         fs::path p = start;
         for (int i = 0; i < 6; ++i) {
@@ -60,10 +60,10 @@ static std::string getAssetsPath() {
         return "";
         };
 
-    // 1) 从当前工作目录向上查找
+    // 1) 从当前工作目录向上查找Buscar hacia arriba desde el directorio de trabajo actual.
     if (auto s = try_find(cwd); !s.empty()) return s;
 
-    // 2) 从可执行文件所在目录向上查找
+    // 2) 从可执行文件所在目录向上查找 Busque hacia arriba desde el directorio donde se encuentra el archivo ejecutable.
     if (!baseStr.empty()) {
         if (auto s = try_find(fs::path(baseStr)); !s.empty()) return s;
     }
@@ -72,9 +72,9 @@ static std::string getAssetsPath() {
     return "Assets";
 }
 
-// ====================================================
-// 加载 BakerHouse
-// ====================================================
+
+// 加载 BakerHouse Cargar BakerHouse
+
 static void loadBakerHouse() {
     namespace fs = std::filesystem;
 
@@ -104,9 +104,8 @@ static void loadBakerHouse() {
     }
 }
 
-// ====================================================
-// 其他辅助函数（与原版一致）
-// ====================================================
+
+
 static void loadModelFromFile(const string& filepath) {
     cout << "Loading model from: " << filepath << endl;
 
@@ -170,7 +169,7 @@ static void handleDropFile(const string& filepath) {
     }
 }
 
-// 绘制网格线与辅助三角
+// 绘制网格线与辅助三角 Dibujar líneas de cuadrícula y triángulos auxiliares
 static void draw_triangle(const glm::u8vec3& color, const vec3& center, double size) {
     glColor3ub(color.r, color.g, color.b);
     glBegin(GL_TRIANGLES);
@@ -212,9 +211,8 @@ static void updateProjection(int width, int height) {
     glLoadMatrixd(&camera.projection()[0][0]);
 }
 
-// ====================================================
-// 输入与渲染循环（与原版一致）
-// ====================================================
+
+// 输入与渲染循环 Bucle de entrada y renderizado
 static void handle_input() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -287,9 +285,9 @@ static void render() {
     SDL_GL_SwapWindow(window);
 }
 
-// ====================================================
-// OpenGL 初始化
-// ====================================================
+
+// OpenGL 初始化 Inicializacion de OpenGL
+
 static void init_opengl() {
     glewInit();
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
@@ -309,9 +307,9 @@ static void init_opengl() {
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 }
 
-// ====================================================
-// 程序入口
-// ====================================================
+
+// 程序入口 punto de entrada del programa
+
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         cout << "SDL could not be initialized! " << SDL_GetError() << endl;
