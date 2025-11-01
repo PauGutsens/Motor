@@ -1,6 +1,8 @@
-#include "Mesh.h"
+ï»¿#include "Mesh.h"
 #include <cstddef>
-#include <iostream>
+
+// è¯´æ˜ï¼šæœ¬æ–‡ä»¶ä¸ Mesh.h ä¸­çš„ Vertex å®šä¹‰é…å¥—ï¼š
+// struct Vertex { vec3 position; vec3 normal; glm::vec2 texCoord; }
 
 Mesh::Mesh(const std::vector<Vertex>& verts, const std::vector<unsigned int>& inds)
     : vertices(verts), indices(inds) {
@@ -13,21 +15,19 @@ Mesh::~Mesh() {
 void Mesh::setupMesh() {
     if (_isSetup || vertices.empty()) return;
 
+    // ç”Ÿæˆå¹¶ç»‘å®š VAO/VBO/EBO
     glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-
     glBindVertexArray(VAO);
 
-    // VBO
+    glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER,
         static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)),
         vertices.data(),
         GL_STATIC_DRAW);
 
-    // EBO£¨¿ÉÎª¿Õ£©
     if (!indices.empty()) {
+        glGenBuffers(1, &EBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
             static_cast<GLsizeiptr>(indices.size() * sizeof(unsigned int)),
@@ -35,19 +35,26 @@ void Mesh::setupMesh() {
             GL_STATIC_DRAW);
     }
 
-    // ¶¥µãÊôĞÔ²¼¾Ö£ºÎ»ÖÃ(0)/·¨Ïß(1) Ê¹ÓÃ GL_DOUBLE£»UV(2) Ê¹ÓÃ GL_FLOAT
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex),
+    // ============================
+    // â­ å›ºå®šç®¡çº¿å®¢æˆ·ç«¯æ•°ç»„è®¾ç½® â­
+    // ============================
+    // é¡¶ç‚¹åæ ‡ï¼šä½¿ç”¨åŒç²¾åº¦ï¼Œä¸ types.h çš„ vec3 (glm::dvec3) ä¸€è‡´
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glVertexPointer(3, GL_DOUBLE, sizeof(Vertex),
         reinterpret_cast<const void*>(offsetof(Vertex, position)));
 
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex),
+    // æ³•çº¿ï¼šåŒä¸ºåŒç²¾åº¦
+    glEnableClientState(GL_NORMAL_ARRAY);
+    glNormalPointer(GL_DOUBLE, sizeof(Vertex),
         reinterpret_cast<const void*>(offsetof(Vertex, normal)));
 
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+    // çº¹ç†åæ ‡ï¼šfloat2ï¼ˆglm::vec2ï¼‰
+    glClientActiveTexture(GL_TEXTURE0);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glTexCoordPointer(2, GL_FLOAT, sizeof(Vertex),
         reinterpret_cast<const void*>(offsetof(Vertex, texCoord)));
 
+    // è§£ç»‘
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     if (!indices.empty()) glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -58,20 +65,24 @@ void Mesh::setupMesh() {
 void Mesh::draw() const {
     if (!_isSetup || VAO == 0) return;
 
-    // ¹Ì¶¨¹ÜÏß¼æÈİ£ºÓĞÎÆÀí²ÅÆôÓÃ/°ó¶¨
+    // å›ºå®šç®¡çº¿ï¼šæœ‰çº¹ç†æ‰å¯ç”¨å¹¶ç»‘å®š
     if (textureID != 0) {
         glEnable(GL_TEXTURE_2D);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureID);
     }
 
+    // ç»‘å®š VAO å¹¶ç»˜åˆ¶
     glBindVertexArray(VAO);
 
     if (!indices.empty()) {
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES,
+            static_cast<GLsizei>(indices.size()),
+            GL_UNSIGNED_INT, 0);
     }
     else {
-        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+        glDrawArrays(GL_TRIANGLES, 0,
+            static_cast<GLsizei>(vertices.size()));
     }
 
     glBindVertexArray(0);
