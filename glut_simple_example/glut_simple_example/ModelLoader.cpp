@@ -24,13 +24,13 @@ using std::endl;
 
 namespace {
 
-    // 取得文件所在目录
+    // 取得文件所在目录 Obten el directorio donde se encuentra el archivo.
     static inline std::string DirName(const std::string& p) {
         std::filesystem::path fp(p);
         return fp.has_parent_path() ? fp.parent_path().string() : std::string(".");
     }
 
-    // 给 mesh 绑定漫反射贴图（若材质包含）
+    // 给 mesh 绑定漫反射贴图（若材质包含）Vincula un mapa difuso a la malla (si el material incluye uno).
     static void AssignDiffuseTextureIfAny(const aiMaterial* mat,
         const std::string& modelPath,
         const shared_ptr<Mesh>& mesh) {
@@ -46,7 +46,7 @@ namespace {
                 return;
             }
 
-            // 兜底：依原始字符串再尝试一次（可能是绝对路径）
+            // 兜底：依原始字符串再尝试一次（可能是绝对路径）Alternativa: Intentelo de nuevo utilizando la cadena original (posiblemente una ruta absoluta).
             if (unsigned int t2 = LoadTexture2D(tex.C_Str())) {
                 mesh->setTexture(t2);
             }
@@ -55,11 +55,11 @@ namespace {
 
 } // namespace
 
-// ============ 这里是“按声明实现”的类成员 ============
-// 注意：签名必须与 ModelLoader.h 完全一致
+// 这里是“按声明实现”的类成员 Los miembros de la clase se implementan mediante declaracion.
+// 注意：签名必须与 ModelLoader.h 完全一致 La firma debe ser exactamente la misma que la de ModelLoader.h.
 std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* scenePtr) {
     aiMesh* mesh = static_cast<aiMesh*>(meshPtr);
-    // const aiScene* scene = static_cast<const aiScene*>(scenePtr); // 当前不需要
+    // const aiScene* scene = static_cast<const aiScene*>(scenePtr); // 当前不需要 No es necesario en este momento.
 
     if (!mesh) return nullptr;
 
@@ -70,7 +70,7 @@ std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* sceneP
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
         Vertex v{};
 
-        // position（双精度容器：vec3 = glm::dvec3）
+        // position（双精度容器：vec3 = glm::dvec3）posicion(contenedor doble: vec3 = glm::dvec3)
         v.position.x = mesh->mVertices[i].x;
         v.position.y = mesh->mVertices[i].y;
         v.position.z = mesh->mVertices[i].z;
@@ -85,7 +85,7 @@ std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* sceneP
             v.normal = vec3(0.0, 0.0, 1.0);
         }
 
-        // texcoord（第一套 UV；你的 Vertex 使用 glm::vec2）
+        // texcoord（第一套 UV；你的 Vertex 使用 glm::vec2）texcoord (primer conjunto UV; Vertex usa glm::vec2)
         if (mesh->mTextureCoords[0]) {
             v.texCoord.x = mesh->mTextureCoords[0][i].x;
             v.texCoord.y = mesh->mTextureCoords[0][i].y;
@@ -110,7 +110,7 @@ std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* sceneP
     return result;
 }
 
-// ============ 公有接口 ============
+// 公有接口 interfaz publica
 
 std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& path) {
     std::vector<std::shared_ptr<Mesh>> meshes;
@@ -137,10 +137,10 @@ std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& pat
     meshes.reserve(scene->mNumMeshes);
     for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
         aiMesh* am = scene->mMeshes[i];
-        auto m = ModelLoader::processMesh(am, scene);     // 调用类的静态成员
+        auto m = ModelLoader::processMesh(am, scene);     // 调用类的静态成员 Llamar a miembros estáticos de una clase
         if (!m) continue;
 
-        // 若该子网格有关联材质，尝试绑定漫反射贴图
+        // 若该子网格有关联材质，尝试绑定漫反射贴图 Si la submalla tiene un material asociado, intente enlazar un mapa difuso.
         if (am->mMaterialIndex < scene->mNumMaterials) {
             const aiMaterial* mat = scene->mMaterials[am->mMaterialIndex];
             AssignDiffuseTextureIfAny(mat, path, m);
