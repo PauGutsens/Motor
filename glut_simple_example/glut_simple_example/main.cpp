@@ -12,6 +12,7 @@
 #include <string>
 #include <algorithm>
 #include "EditorWindows.h"
+#include "imgui_impl_sdl3.h"
 #include <filesystem> // ⭐ 新增：自动检测 Assets 用
 
 using namespace std;
@@ -216,6 +217,10 @@ static void updateProjection(int width, int height) {
 static void handle_input() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        ImGui_ImplSDL3_ProcessEvent(&event);
+        ImGuiIO& io = ImGui::GetIO();
+		if (io.WantCaptureMouse || io.WantCaptureKeyboard) break;
+
         switch (event.type) {
         case SDL_EVENT_QUIT:
             running = false;
@@ -278,9 +283,6 @@ static void render() {
     draw_floorGrid(16, 0.25);
     glColor3f(1.0f, 1.0f, 1.0f);
     for (const auto& go : gameObjects) go->draw();
-    draw_triangle(Colors::Red, vec3(-1, 0.25, 0), 0.5);
-    draw_triangle(Colors::Green, vec3(0, 0.5, 0.25), 0.5);
-    draw_triangle(Colors::Blue, vec3(1, -0.5, -0.25), 0.5);
     editor.render();
     SDL_GL_SwapWindow(window);
 }
