@@ -52,7 +52,7 @@ void Camera::onMouseMove(int x, int y)
     if (_rightMouseDown && !_altPressed && !_shiftPressed)
     {
         _yaw -= deltaX * lookSensitivity;
-        _pitch -= deltaY * lookSensitivity;
+        _pitch += deltaY * lookSensitivity;
 
         const double maxPitch = glm::radians(89.0);
         _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
@@ -180,10 +180,10 @@ void Camera::handleFPSMovement(double deltaTime)
 
     vec3 movement(0);
 
-    if (_keyW) movement += _transform.fwd();
-    if (_keyS) movement -= _transform.fwd();
-    if (_keyA) movement += _transform.left();
-    if (_keyD) movement -= _transform.left();
+    if (_keyW) movement -= _transform.fwd();
+    if (_keyS) movement += _transform.fwd();
+    if (_keyA) movement -= _transform.left();
+    if (_keyD) movement += _transform.left();
 
     if (glm::length(movement) > 0.001) {
         movement = glm::normalize(movement) * speed;
@@ -204,7 +204,7 @@ void Camera::handlePan(int deltaX, int deltaY)
 void Camera::handleOrbit(int deltaX, int deltaY)
 {
     _yaw -= deltaX * lookSensitivity;
-    _pitch -= deltaY * lookSensitivity;
+    _pitch += deltaY * lookSensitivity;
 
     const double maxPitch = glm::radians(89.0);
     _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
