@@ -67,7 +67,7 @@ void Camera::onMouseMove(int x, int y)
         _lastMouseY = y;
         
     }
-       // ⭐ 规则2：右键拖动 = 第一人称视角转向
+     
        else if (_rightMouseDown && !_altPressed)
     {
         handleOrbit(deltaX, deltaY);
@@ -192,7 +192,7 @@ void Camera::handleFPSMovement(double deltaTime)
 
 void Camera::handlePan(int deltaX, int deltaY)
 {
-    // 鼠标右移 -> 往右平移；鼠标上移 -> 往上平移
+    // 鼠标右移 -> 往右平移；鼠标上移 -> 往上平移 Mueve el raton hacia la derecha -> muevelo hacia la derecha; Mueve el raton hacia arriba -> muevelo hacia arriba.
     // 注意：right = -left()
     vec3 right = -_transform.left();
     vec3 up = _transform.up();
@@ -200,7 +200,7 @@ void Camera::handlePan(int deltaX, int deltaY)
     vec3 delta = (-deltaX * panSpeed) * right + (deltaY * panSpeed) * up;
     _transform.translate(delta);
 
-    // 如果你希望“轨道目标”也跟着一起平移（更符合轨道相机手感），就把下一行解注释：
+    // 如果你希望“轨道目标”也跟着一起平移（更符合轨道相机手感），就把下一行解注释：El "objetivo orbital" tambien se desplaza con el (para adaptarse mejor a la sensacion de una camara orbital), por lo que la siguiente linea esta anotada
     // orbitTarget += delta;
 }
 
