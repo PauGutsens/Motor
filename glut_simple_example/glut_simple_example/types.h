@@ -1,5 +1,4 @@
 #pragma once
-
 #include <glm/glm.hpp>
 
 using mat4 = glm::dmat4;

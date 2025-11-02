@@ -14,40 +14,26 @@
 #include "EditorWindows.h"
 #include "Logger.h"
 #include "imgui_impl_sdl3.h"
-#include <filesystem> // ⭐ 新增：自动检测 Assets 用
+#include <filesystem>
 
 using namespace std;
-
+namespace fs = std::filesystem;
 static EditorWindows editor;
 static Camera camera;
 static auto lastFrameTime = chrono::high_resolution_clock::now();
 SDL_Window* window = nullptr;
 static SDL_GLContext glContext = nullptr;
 static bool running = true;
-
-// Game objects storage
 static vector<shared_ptr<GameObject>> gameObjects;
 static shared_ptr<GameObject> selectedGameObject = nullptr;
 
-
-// 自动检测最近的 Assets 文件夹（无需手动改路径）Detectar automaticamente la carpeta de Activos mas reciente
-
 static std::string getAssetsPath() {
     namespace fs = std::filesystem;
-
-    // 日志输出：当前工作目录和 SDL 基路径Salida: Directorio de trabajo actual y ruta base de SDL
     auto cwd = fs::current_path();
-    /*char* base = SDL_GetBasePath();
-    std::string baseStr = base ? base : "";
-    if (base) SDL_free(base);*/
     const char* base = SDL_GetBasePath();
     std::string baseStr = base ? base : "";
-    
-
     std::cout << "[Path] CWD        = " << cwd.string() << std::endl;
     std::cout << "[Path] SDL base   = " << baseStr << std::endl;
-
-    // 向上查找6层目录，找到最近的 Assets Busca en los 6 niveles superiores del directorio para encontrar los recursos mas recientes.
     auto try_find = [](fs::path start)->std::string {
         fs::path p = start;
         for (int i = 0; i < 6; ++i) {
@@ -61,11 +47,7 @@ static std::string getAssetsPath() {
         }
         return "";
         };
-
-    // 1) 从当前工作目录向上查找Buscar hacia arriba desde el directorio de trabajo actual.
     if (auto s = try_find(cwd); !s.empty()) return s;
-
-    // 2) 从可执行文件所在目录向上查找 Busque hacia arriba desde el directorio donde se encuentra el archivo ejecutable.
     if (!baseStr.empty()) {
         if (auto s = try_find(fs::path(baseStr)); !s.empty()) return s;
     }
@@ -74,31 +56,21 @@ static std::string getAssetsPath() {
     return "Assets";
 }
 
-
-// 加载 BakerHouse Cargar BakerHouse
-
 static void loadBakerHouse() {
-    namespace fs = std::filesystem;
-
     std::string assetsPath = getAssetsPath();
     fs::path bakerHousePath = fs::absolute(fs::path(assetsPath) / "BakerHouse.fbx");
-
     std::cout << "Attempting to load BakerHouse from: " << bakerHousePath.string() << std::endl;
-
     if (!fs::exists(bakerHousePath)) {
         std::cerr << "[ERROR] BakerHouse.fbx not found at: " << bakerHousePath.string() << std::endl;
         std::cerr << "-> Put the file here, OR drag & drop an FBX into the window." << std::endl;
         return;
     }
-
     auto meshes = ModelLoader::loadModel(bakerHousePath.string());
     if (meshes.empty()) {
         std::cerr << "[ERROR] Assimp failed to load model. Check console above for details." << std::endl;
         return;
     }
-
     std::cout << "BakerHouse loaded successfully with " << meshes.size() << " meshes." << std::endl;
-
     for (size_t i = 0; i < meshes.size(); i++) {
         auto gameObject = std::make_shared<GameObject>("BakerHouse_" + std::to_string(i));
         gameObject->setMesh(meshes[i]);
@@ -110,20 +82,15 @@ static void loadBakerHouse() {
 
 static void loadModelFromFile(const string& filepath) {
     cout << "Loading model from: " << filepath << endl;
-
     auto meshes = ModelLoader::loadModel(filepath);
-
     if (meshes.empty()) {
         cerr << "ERROR: Failed to load model from: " << filepath << endl;
         return;
     }
-
     cout << "Model loaded successfully with " << meshes.size() << " meshes." << endl;
-
     size_t lastSlash = filepath.find_last_of("/\\");
     size_t lastDot = filepath.find_last_of(".");
     string modelName = filepath.substr(lastSlash + 1, lastDot - lastSlash - 1);
-
     for (size_t i = 0; i < meshes.size(); i++) {
         auto gameObject = make_shared<GameObject>(modelName + "_" + to_string(i));
         gameObject->setMesh(meshes[i]);
@@ -171,7 +138,6 @@ static void handleDropFile(const string& filepath) {
     }
 }
 
-// 绘制网格线与辅助三角 Dibujar líneas de cuadrícula y triángulos auxiliares
 static void draw_triangle(const glm::u8vec3& color, const vec3& center, double size) {
     glColor3ub(color.r, color.g, color.b);
     glBegin(GL_TRIANGLES);
@@ -197,7 +163,6 @@ static void updateProjection(int width, int height) {
     double targetAspect = 16.0 / 9.0;
     int viewportWidth = width, viewportHeight = height, viewportX = 0, viewportY = 0;
     double currentAspect = static_cast<double>(width) / height;
-
     if (currentAspect > targetAspect) {
         viewportWidth = static_cast<int>(height * targetAspect);
         viewportX = (width - viewportWidth) / 2;
@@ -206,22 +171,18 @@ static void updateProjection(int width, int height) {
         viewportHeight = static_cast<int>(width / targetAspect);
         viewportY = (height - viewportHeight) / 2;
     }
-
     glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
     camera.aspect = targetAspect;
     glMatrixMode(GL_PROJECTION);
     glLoadMatrixd(&camera.projection()[0][0]);
 }
 
-
-// 输入与渲染循环 Bucle de entrada y renderizado
 static void handle_input() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL3_ProcessEvent(&event);
         ImGuiIO& io = ImGui::GetIO();
 		if (io.WantCaptureMouse || io.WantCaptureKeyboard) break;
-
         switch (event.type) {
         case SDL_EVENT_QUIT:
             running = false;
@@ -274,22 +235,16 @@ static void render() {
     auto currentTime = chrono::high_resolution_clock::now();
     double deltaTime = chrono::duration<double>(currentTime - lastFrameTime).count();
     lastFrameTime = currentTime;
-
     camera.update(deltaTime);
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
     glLoadMatrixd(&camera.view()[0][0]);
-
     draw_floorGrid(16, 0.25);
     glColor3f(1.0f, 1.0f, 1.0f);
     for (const auto& go : gameObjects) go->draw();
     editor.render();
     SDL_GL_SwapWindow(window);
 }
-
-
-// OpenGL 初始化 Inicializacion de OpenGL
 
 static void init_opengl() {
     glewInit();
@@ -310,20 +265,15 @@ static void init_opengl() {
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 }
 
-
-// 程序入口 punto de entrada del programa
-
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         cout << "SDL could not be initialized! " << SDL_GetError() << endl;
         return EXIT_FAILURE;
     }
-
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-
     int screenWidth = 1280, screenHeight = 720;
     window = SDL_CreateWindow("Motor - FBX Loader", screenWidth, screenHeight,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
@@ -331,7 +281,6 @@ int main(int argc, char* argv[]) {
         cout << "Window could not be created! " << SDL_GetError() << endl;
         return EXIT_FAILURE;
     }
-
     glContext = SDL_GL_CreateContext(window);
     editor.init(window, glContext);
     editor.setScene(&gameObjects, &selectedGameObject);
@@ -339,17 +288,14 @@ int main(int argc, char* argv[]) {
         cout << "OpenGL context could not be created!" << endl;
         return EXIT_FAILURE;
     }
-
     init_opengl();
     camera.transform().pos() = vec3(0, 5, 10);
     camera.orbitTarget = vec3(0, 0, 0);
     updateProjection(screenWidth, screenHeight);
-
     cout << "========================================" << endl;
     cout << "Loading BakerHouse..." << endl;
     cout << "========================================" << endl;
     loadBakerHouse();
-
     cout << "========================================" << endl;
     cout << "Instructions:" << endl;
     cout << "- Drag & drop FBX to load models" << endl;
@@ -357,15 +303,12 @@ int main(int argc, char* argv[]) {
     cout << "- Left click to select/cycle objects" << endl;
     cout << "- Right drag: rotate camera, WASD: move, wheel: zoom" << endl;
     cout << "========================================" << endl;
-
     while (running) {
         handle_input();
         render();
-        if (editor.wantsQuit()) running = false;  // ⭐ 让菜单“Exit”生效
+        if (editor.wantsQuit()) running = false;
         SDL_Delay(1);
     }
-
-
     gameObjects.clear();
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);

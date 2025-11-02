@@ -12,7 +12,6 @@
 using std::string;
 namespace fs = std::filesystem;
 
-// Utility function to get texture size from OpenGL
 static void glTextureSize(GLuint tex, int& w, int& h) {
     w = h = 0;
     if (!tex) return;
@@ -48,17 +47,14 @@ void EditorWindows::render() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
-
     ImGuiIO& io = ImGui::GetIO();
     fps_history_[fps_index_] = io.Framerate;
     fps_index_ = (fps_index_ + 1) % kFpsHistory;
-
     drawMainMenu();
     if (show_console_)   drawConsole();
     if (show_config_)    drawConfig();
     if (show_hierarchy_) drawHierarchy();
     if (show_inspector_) drawInspector();
-
     if (show_about_) {
         if (ImGui::Begin("About", &show_about_)) {
             ImGui::TextUnformatted("Engine: Motor - FBX Loader");
@@ -70,7 +66,6 @@ void EditorWindows::render() {
             ImGui::End();
         }
     }
-
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
@@ -114,7 +109,6 @@ void EditorWindows::drawMainMenu() {
 void EditorWindows::drawConsole() {
     ImGui::SetNextWindowSize(ImVec2(600, 220), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Console", &show_console_)) { ImGui::End(); return; }
-
     static ImGuiTextFilter filter;
     static bool auto_scroll = true;
     filter.Draw("Filter");
@@ -161,7 +155,6 @@ void EditorWindows::drawHierarchy() {
     ImGui::SetNextWindowSize(ImVec2(260, 420), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Hierarchy", &show_hierarchy_)) { ImGui::End(); return; }
     if (!scene_) { ImGui::TextDisabled("No scene."); ImGui::End(); return; }
-
     for (size_t i = 0; i < scene_->size(); ++i) {
         auto& go = (*scene_)[i];
         bool selected = selected_ && *selected_ && go.get() == selected_->get();
@@ -194,12 +187,9 @@ void EditorWindows::drawInspector() {
     ImGui::SetNextWindowSize(ImVec2(360, 520), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Inspector", &show_inspector_)) { ImGui::End(); return; }
     if (!selected_ || !(*selected_)) { ImGui::TextDisabled("No selection."); ImGui::End(); return; }
-
     auto go = *selected_;
     ImGui::Text("Name: %s", go->name.c_str());
     ImGui::Separator();
-
-    // Transform
     auto& T = go->transform;
     if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto pos = T.pos();
@@ -215,19 +205,15 @@ void EditorWindows::drawInspector() {
             memcpy(last, rot, sizeof(rot));
         }
         ImGui::SameLine(); if (ImGui::Button("Reset##rot")) { T.resetRotation(); memset(rot, 0, sizeof(rot)); memset(last, 0, sizeof(last)); }
-
         auto sc = T.getScale();
         float s[3] = { (float)sc.x, (float)sc.y, (float)sc.z };
         if (ImGui::DragFloat3("Scale", s, 0.05f, 0.001f, 1000.0f)) T.setScale({ s[0], s[1], s[2] });
         ImGui::SameLine(); if (ImGui::Button("Reset##scale")) T.resetScale();
-
         auto L = T.left(), U = T.up(), F = T.fwd();
         ImGui::Text("Left: (%.3f,%.3f,%.3f)", L.x, L.y, L.z);
         ImGui::Text("Up: (%.3f,%.3f,%.3f)", U.x, U.y, U.z);
         ImGui::Text("Forward: (%.3f,%.3f,%.3f)", F.x, F.y, F.z);
     }
-
-    // Mesh info
     if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (go->mesh) {
             ImGui::Text("Vertices: %zu", go->mesh->getVertexCount());
@@ -243,8 +229,6 @@ void EditorWindows::drawInspector() {
         }
         else ImGui::TextDisabled("No mesh attached.");
     }
-
-    // Texture
     if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen)) {
         unsigned int texID = go->getTextureID();
         int tw = 0, th = 0; if (texID) glTextureSize(texID, tw, th);
@@ -278,7 +262,6 @@ void EditorWindows::drawInspector() {
             ImGui::Image((ImTextureID)(intptr_t)texID, size);
         }
     }
-
     ImGui::End();
 }
 
@@ -313,4 +296,3 @@ void EditorWindows::loadPrimitiveFromAssets(const std::string& name) {
     }
     LOG_INFO("Loaded primitive: " + p.string());
 }
-

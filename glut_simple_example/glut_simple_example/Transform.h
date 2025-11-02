@@ -1,9 +1,7 @@
 #pragma once
-
 #include "types.h"
 
 class Transform {
-
 	union {
 		mat4 _mat = mat4(1.0);
 		struct {
@@ -22,16 +20,12 @@ public:
 	const auto& fwd() const { return _fwd; }
 	const auto& pos() const { return _pos; }
 	auto& pos() { return _pos; }
-
 	void translate(const vec3& v);
 	void rotate(double rads, const vec3& v);
-
 	void setPosition(const vec3& t);
 	vec3 getScale() const;
 	void setScale(const vec3& s);
 	void resetScale();
 	void resetRotation();
-
 	void rotateEulerDeltaDeg(const vec3& deltaDegXYZ);
-
 };

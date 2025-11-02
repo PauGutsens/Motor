@@ -4,7 +4,6 @@
 
 void Transform::translate(const vec3& v) { _mat = glm::translate(_mat, v); }
 void Transform::rotate(double rads, const vec3& v) { _mat = glm::rotate(_mat, rads, v); }
-
 void Transform::setPosition(const vec3& t) {
     _pos = t;
     _pos_w = (mat4::value_type)1;
@@ -22,20 +21,16 @@ vec3 Transform::getScale() const {
 
 void Transform::setScale(const vec3& s) {
     const mat4::value_type eps = (mat4::value_type)1e-12;
-
     auto norm_safe = [&](const vec3& v, int axis)->vec3 {
         auto L = _len3(v);
         if (L > eps) return v * (mat4::value_type)(1.0 / (double)L);
-        // Si el eje está degenerado, usa el unitario mundial
         if (axis == 0) return vec3(1, 0, 0);
         if (axis == 1) return vec3(0, 1, 0);
         return vec3(0, 0, 1);
         };
-
     vec3 nx = norm_safe(_left, 0);
     vec3 ny = norm_safe(_up, 1);
     vec3 nz = norm_safe(_fwd, 2);
-
     _left = nx * s.x;  _left_w = (mat4::value_type)0;
     _up = ny * s.y;  _up_w = (mat4::value_type)0;
     _fwd = nz * s.z;  _fwd_w = (mat4::value_type)0;
@@ -56,10 +51,9 @@ void Transform::rotateEulerDeltaDeg(const vec3& degXYZ) {
 void Transform::resetRotation() {
     vec3 T = _pos;
     vec3 S = getScale();
-
     _left = vec3(S.x, 0, 0);  _left_w = (mat4::value_type)0;
     _up = vec3(0, S.y, 0);  _up_w = (mat4::value_type)0;
     _fwd = vec3(0, 0, S.z);  _fwd_w = (mat4::value_type)0;
-
-    _pos = T;                _pos_w = (mat4::value_type)1;
+    _pos = T;                
+    _pos_w = (mat4::value_type)1;
 }

@@ -1,5 +1,4 @@
 #pragma once
-
 #include "Transform.h"
 
 class Camera {
@@ -9,7 +8,6 @@ public:
 	double aspect = 16.0 / 9.0;
 	double zNear = 0.1;
 	double zFar = 128.0;
-
 	double moveSpeed = 2.0;
 	double lookSensitivity = 0.003;
 	double zoomSpeed = 0.5;
@@ -27,22 +25,18 @@ private:
 	bool _shiftPressed = false;
 	int _lastMouseX = 0;
 	int _lastMouseY = 0;
-
 	bool _keyW = false;
 	bool _keyA = false;
 	bool _keyS = false;
 	bool _keyD = false;
-
 	double _yaw = 0.0;
 	double _pitch = 0.0;
 
 public:
 	const auto& transform() const { return _transform; }
 	auto& transform() { return _transform; }
-
 	mat4 projection() const;
 	mat4 view() const;
-
 	void onMouseButton(int button, int state, int x, int y);
 	void onMouseMove(int x, int y);
 	void onMouseWheel(int direction);

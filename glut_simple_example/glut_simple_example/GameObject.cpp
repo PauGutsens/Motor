@@ -7,10 +7,8 @@ GameObject::GameObject(const std::string& n) : name(n) {
 
 void GameObject::draw() const {
     if (!mesh) return;
-
     glPushMatrix();
     glMultMatrixd(glm::value_ptr(transform.mat()));
-
     if (isSelected) {
         glDisable(GL_LIGHTING);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -21,9 +19,7 @@ void GameObject::draw() const {
         glLineWidth(1.0f);
         glEnable(GL_LIGHTING);
     }
-
     mesh->draw();
-
     glPopMatrix();
 }
 
@@ -38,5 +34,5 @@ void GameObject::setTexture(GLuint texID) {
 }
 unsigned int GameObject::getTextureID() const {
     if (!mesh) return 0;
-    return mesh->getTextureID(); // 需要 Mesh 提供 getter（见补丁 B）
+    return mesh->getTextureID(); 
 }

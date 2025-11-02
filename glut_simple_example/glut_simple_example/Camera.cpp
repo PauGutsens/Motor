@@ -31,14 +31,12 @@ void Camera::onMouseButton(int button, int state, int x, int y)
         else { SDL_CaptureMouse(false); }
 
     }
-    else if (button == SDL_BUTTON_MIDDLE) { // ⭐ 新增：中键按下
+    else if (button == SDL_BUTTON_MIDDLE) {
         _middleMouseDown = (state == 1);
         if (_middleMouseDown) { _lastMouseX = x; _lastMouseY = y; }
-
     }
     else if (button == SDL_BUTTON_LEFT) {
         _leftMouseDown = (state == 1);
-
         if (_leftMouseDown) { _lastMouseX = x; _lastMouseY = y; }
     }
 }
@@ -48,27 +46,21 @@ void Camera::onMouseMove(int x, int y)
     int deltaX = x - _lastMouseX;
     int deltaY = y - _lastMouseY;
 
-    
     if (_rightMouseDown && !_altPressed && !_shiftPressed)
     {
         _yaw += deltaX * lookSensitivity;
         _pitch -= deltaY * lookSensitivity;
-
         const double maxPitch = glm::radians(89.0);
         _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
-
         updateOrientation();
-
         _lastMouseX = x;
         _lastMouseY = y;
     }
-    //Pan (right mouse + shift OR middle mouse)
     else if ((_rightMouseDown && _shiftPressed) || _middleMouseDown) {
         handlePan(deltaX, deltaY);
         _lastMouseX = x;
         _lastMouseY = y;
     }
-    //Orbit (left mouse + alt)
     else if (_leftMouseDown && _altPressed)
     {
         handleOrbit(deltaX, deltaY);
@@ -147,7 +139,6 @@ void Camera::focusOn(const vec3& target, double distance)
 {
     orbitTarget = target;
     orbitDistance = distance;
-
     vec3 offset = _transform.fwd() * distance;
     _transform.pos() = target - offset;
 }
@@ -157,13 +148,10 @@ void Camera::updateOrientation()
     mat4 rotation = mat4(1.0);
     rotation = glm::rotate(rotation, _yaw, vec3(0, 1, 0));
     rotation = glm::rotate(rotation, _pitch, vec3(1, 0, 0));
-
     vec3 forward = vec3(rotation * vec4(0, 0, -1, 0));
     vec3 right = glm::normalize(glm::cross(forward, vec3(0, 1, 0)));
     vec3 up = glm::normalize(glm::cross(right, forward));
-
     vec3 currentPos = _transform.pos();
-
     auto& m = _transform.mat_mutable();
     m[0] = vec4(right, 0);
     m[1] = vec4(up, 0);
@@ -177,14 +165,11 @@ void Camera::handleFPSMovement(double deltaTime)
     if (_shiftPressed) {
         speed *= 2.0;
     }
-
     vec3 movement(0);
-
     if (_keyW) movement += _transform.fwd();
     if (_keyS) movement -= _transform.fwd();
     if (_keyA) movement += _transform.left();
     if (_keyD) movement -= _transform.left();
-
     if (glm::length(movement) > 0.001) {
         movement = glm::normalize(movement) * speed;
         _transform.translate(movement);
@@ -195,7 +180,6 @@ void Camera::handlePan(int deltaX, int deltaY)
 {
     vec3 right = -_transform.left();
     vec3 up = _transform.up();
-
     vec3 delta = (-deltaX * panSpeed) * right + (deltaY * panSpeed) * up;
     _transform.translate(delta);
 }
@@ -205,21 +189,16 @@ void Camera::handleOrbit(int deltaX, int deltaY)
 {
     _yaw -= deltaX * lookSensitivity;
     _pitch += deltaY * lookSensitivity;
-
     const double maxPitch = glm::radians(89.0);
     _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
-
     double cosYaw = cos(_yaw);
     double sinYaw = sin(_yaw);
     double cosPitch = cos(_pitch);
     double sinPitch = sin(_pitch);
-
     vec3 offset;
     offset.x = orbitDistance * cosPitch * sinYaw;
     offset.y = orbitDistance * sinPitch;
     offset.z = orbitDistance * cosPitch * cosYaw;
-
     _transform.pos() = orbitTarget + offset;
-
     updateOrientation();
 }

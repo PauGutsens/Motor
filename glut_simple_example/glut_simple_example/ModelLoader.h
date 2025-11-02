@@ -1,5 +1,4 @@
 #pragma once
-
 #include "Mesh.h"
 #include <string>
 #include <vector>
