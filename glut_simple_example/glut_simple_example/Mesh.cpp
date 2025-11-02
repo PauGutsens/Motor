@@ -93,6 +93,10 @@ void Mesh::draw() const {
     }
 }
 
+unsigned int Mesh::getTextureID() const {
+    return textureID; // 如果你的成员名不同，请改成对应名称
+}
+
 void Mesh::cleanup() {
     if (EBO) { glDeleteBuffers(1, &EBO); EBO = 0; }
     if (VBO) { glDeleteBuffers(1, &VBO); VBO = 0; }

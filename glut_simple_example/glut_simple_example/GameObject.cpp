@@ -36,3 +36,7 @@ void GameObject::setTexture(GLuint texID) {
         mesh->setTexture(texID);
     }
 }
+unsigned int GameObject::getTextureID() const {
+    if (!mesh) return 0;
+    return mesh->getTextureID(); // 需要 Mesh 提供 getter（见补丁 B）
+}

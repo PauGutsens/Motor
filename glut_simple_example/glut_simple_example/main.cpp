@@ -12,6 +12,7 @@
 #include <string>
 #include <algorithm>
 #include "EditorWindows.h"
+#include "Logger.h"
 #include "imgui_impl_sdl3.h"
 #include <filesystem> // ⭐ 新增：自动检测 Assets 用
 
@@ -360,8 +361,10 @@ int main(int argc, char* argv[]) {
     while (running) {
         handle_input();
         render();
+        if (editor.wantsQuit()) running = false;  // ⭐ 让菜单“Exit”生效
         SDL_Delay(1);
     }
+
 
     gameObjects.clear();
     SDL_GL_DestroyContext(glContext);

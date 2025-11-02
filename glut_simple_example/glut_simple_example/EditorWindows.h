@@ -1,42 +1,56 @@
 #pragma once
-#include "imgui.h"
-#include "types.h"
-#include <SDL3/SDL.h>
 #include <vector>
 #include <memory>
-class GameObject;
-
-struct SDL_Window;
+#include <string>
+#include <unordered_map>
+#include "types.h"
+#include "GameObject.h"
+#include "Logger.h"
+#include <SDL3/SDL.h>
 
 class EditorWindows {
 public:
-    EditorWindows();
-    ~EditorWindows();
-
-    void init(SDL_Window* window, SDL_GLContext gl_context);
-    void render();
+    void init(SDL_Window* window, SDL_GLContext gl);
     void shutdown();
-    void setScene(std::vector<std::shared_ptr<GameObject>>* objs,
-        std::shared_ptr<GameObject>* selectedPtr) {
-        sceneObjects = objs;
-        selected = selectedPtr;
-    }
+    void render();
+    void setScene(std::vector<std::shared_ptr<GameObject>>* scene,
+        std::shared_ptr<GameObject>* selected);
+
+    bool wantsQuit() const { return wants_quit_; }
 
 private:
-    void renderMainMenuBar();
-    void renderConsoleWindow();
-    void renderSettingsWindow();
-    void renderHierarchyWindow();
-    void renderInspectorWindow();
-    void renderGeometryMenu();
+    // 窗口可见开关
+    bool show_console_ = true;
+    bool show_config_ = true;
+    bool show_hierarchy_ = true;
+    bool show_inspector_ = true;
+    bool show_about_ = false;
 
-    std::vector<std::shared_ptr<GameObject>>* sceneObjects = nullptr;
-    std::shared_ptr<GameObject>* selected = nullptr;
+    bool wants_quit_ = false;
 
-    // Window visibility flags
-    bool show_console = true;
-    bool show_settings = true;
-    bool show_hierarchy = true;
-    bool show_inspector = true;
-    bool show_geometry_menu = true;
+    // FPS 曲线历史
+    static constexpr int kFpsHistory = 300; // ~5s @60fps
+    float fps_history_[kFpsHistory] = { 0 };
+    int   fps_index_ = 0;
+
+    // 棋盘格纹理
+    unsigned int checker_tex_ = 0;
+    int checker_w_ = 0, checker_h_ = 0;
+    std::unordered_map<GameObject*, unsigned int> prev_tex_; // 恢复原贴图
+
+    // 场景/选择指针
+    std::vector<std::shared_ptr<GameObject>>* scene_ = nullptr;
+    std::shared_ptr<GameObject>* selected_ = nullptr;
+
+    // 绘制
+    void drawMainMenu();
+    void drawConsole();
+    void drawConfig();
+    void drawHierarchy();
+    void drawInspector();
+
+    // 工具
+    void ensureChecker();
+    void loadPrimitiveFromAssets(const std::string& name);
+    std::string getAssetsPath();
 };

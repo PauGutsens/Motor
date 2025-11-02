@@ -16,6 +16,8 @@ class Mesh {
 public:
     std::vector<Vertex>         vertices;
     std::vector<unsigned int>   indices;
+    unsigned int getTextureID() const;
+
 
     // GPU ืสิด
     GLuint VAO = 0;

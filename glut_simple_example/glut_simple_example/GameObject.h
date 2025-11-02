@@ -17,4 +17,6 @@ public:
     void draw() const;
     void setMesh(std::shared_ptr<Mesh> m);
     void setTexture(GLuint texID);
+    unsigned int getTextureID() const;
+
 };
