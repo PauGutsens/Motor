@@ -26,4 +26,12 @@ public:
 	void translate(const vec3& v);
 	void rotate(double rads, const vec3& v);
 
+	void setPosition(const vec3& t);
+	vec3 getScale() const;
+	void setScale(const vec3& s);
+	void resetScale();
+	void resetRotation();
+
+	void rotateEulerDeltaDeg(const vec3& deltaDegXYZ);
+
 };

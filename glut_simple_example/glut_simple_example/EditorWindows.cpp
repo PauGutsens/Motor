@@ -238,10 +238,51 @@ void EditorWindows::drawInspector() {
     ImGui::Text("Name: %s", go->name.c_str());
     ImGui::Separator();
 
-    // Transform（只读展示；后续可加编辑）
+    //Transform
     auto& T = go->transform;
-    auto P = T.pos();
-    ImGui::Text("Position: (%.3f, %.3f, %.3f)", P.x, P.y, P.z);
+
+    ImGui::Separator();
+    ImGui::Text("Transform");
+    ImGui::PushID("TransformBlock");
+
+    // Position
+    {
+        auto P = T.pos();
+        float v[3] = { (float)P.x, (float)P.y, (float)P.z };
+        bool changed = ImGui::DragFloat3("Position", v, 0.1f, -10000.0f, 10000.0f, "%.3f");
+        if (changed) T.setPosition(vec3(v[0], v[1], v[2]));
+        ImGui::SameLine();
+        if (ImGui::Button("Reset##pos")) { T.setPosition(vec3(0, 0, 0)); }
+    }
+
+    // Rotation
+    {
+        static float deg[3] = { 0,0,0 };
+        static float last[3] = { 0,0,0 };
+        if (ImGui::DragFloat3("Rotation", deg, 0.2f, -100000.0f, 100000.0f, "%.2f")) {
+            float d[3] = { deg[0] - last[0], deg[1] - last[1], deg[2] - last[2] };
+            T.rotateEulerDeltaDeg(vec3(d[0], d[1], d[2]));
+            memcpy(last, deg, sizeof(deg));
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reset##rot")) {
+            T.resetRotation();
+            deg[0] = deg[1] = deg[2] = 0.0f; last[0] = last[1] = last[2] = 0.0f;
+        }
+    }
+
+    // Scale
+    {
+        vec3 S = T.getScale();
+        float s[3] = { (float)S.x, (float)S.y, (float)S.z };
+        bool changed = ImGui::DragFloat3("Scale", s, 0.05f, 0.001f, 1000.0f, "%.3f");
+        if (changed) T.setScale(vec3(s[0], s[1], s[2]));
+        ImGui::SameLine();
+        if (ImGui::Button("Reset##scale")) { T.resetScale(); }
+    }
+
+    ImGui::PopID();
+
 
     ImGui::Separator();
     ImGui::Text("Mesh");
