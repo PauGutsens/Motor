@@ -13,7 +13,7 @@
 #include <algorithm>
 #include "EditorWindows.h"
 #include "Logger.h"
-#include "imgui_impl_sdl3.h"
+#include "backends/imgui/imgui_impl_sdl3.h"
 #include <filesystem>
 
 using namespace std;
