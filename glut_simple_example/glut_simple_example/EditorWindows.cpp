@@ -57,10 +57,10 @@ void EditorWindows::render() {
     if (show_inspector_) drawInspector();
     if (show_about_) {
         if (ImGui::Begin("About", &show_about_)) {
-            ImGui::TextUnformatted("Engine: Motor - FBX Loader");
+            ImGui::TextUnformatted("Motor");
             ImGui::TextUnformatted("Version: 0.1.0");
             ImGui::Separator();
-            ImGui::TextUnformatted("Team Members: (fill names)");
+            ImGui::TextUnformatted("Team Members: Pau Gutsens, Pau Hernandez, Ao Yunqian, Eduard Garcia");
             ImGui::TextUnformatted("Libraries: SDL3, OpenGL, GLEW, ImGui, Assimp, DevIL");
             ImGui::TextUnformatted("License: MIT");
             ImGui::End();
@@ -94,8 +94,8 @@ void EditorWindows::drawMainMenu() {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Help")) {
-            static const char* REPO = "https://github.com/your_org/your_repo";
-            if (ImGui::MenuItem("GitHub Docs"))       SDL_OpenURL((std::string(REPO) + "/docs").c_str());
+            static const char* REPO = "https://github.com/PauGutsens/Motor";
+            if (ImGui::MenuItem("GitHub Docs"))       SDL_OpenURL((std::string(REPO)).c_str());
             if (ImGui::MenuItem("Report a bug"))      SDL_OpenURL((std::string(REPO) + "/issues").c_str());
             if (ImGui::MenuItem("Download latest"))   SDL_OpenURL((std::string(REPO) + "/releases").c_str());
             ImGui::Separator();
