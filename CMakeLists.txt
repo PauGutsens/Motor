@@ -11,12 +11,11 @@ find_package(glm CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
 
-# DevIL - RUTAS ABSOLUTAS FORZADAS
+# DevIL
 set(IL_INCLUDE_DIR "C:/vcpkg/installed/x64-windows/include")
 set(IL_LIBRARY "C:/vcpkg/installed/x64-windows/lib/DevIL.lib")
 set(ILU_LIBRARY "C:/vcpkg/installed/x64-windows/lib/ILU.lib")
 
-# Verificar que existen
 if(NOT EXISTS "${IL_INCLUDE_DIR}/IL/il.h")
     message(FATAL_ERROR "DevIL headers not found at: ${IL_INCLUDE_DIR}/IL/il.h")
 endif()
@@ -32,24 +31,16 @@ message(STATUS "✓ ILU Library: ${ILU_LIBRARY}")
 message(STATUS "===================================")
 
 # Source files
-set(SOURCES
-    src/main.cpp
-    src/Camera.cpp
-    src/Transform.cpp
-    src/Mesh.cpp
-    src/GameObject.cpp
-    src/ModelLoader.cpp
+file(GLOB SOURCES
+    ${CMAKE_SOURCE_DIR}/glut_simple_example/glut_simple_example/*.cpp
 )
 
 # Header files
-set(HEADERS
-    src/Camera.h
-    src/Transform.h
-    src/types.h
-    src/Mesh.h
-    src/GameObject.h
-    src/ModelLoader.h
+file(GLOB HEADERS
+    ${CMAKE_SOURCE_DIR}/glut_simple_example/glut_simple_example/*.h
 )
+
+
 
 # Create executable
 add_executable(Motor ${SOURCES} ${HEADERS})
@@ -64,11 +55,11 @@ target_link_libraries(Motor PRIVATE
     ${ILU_LIBRARY}
 )
 
-# Include directories - IMPORTANTE: Agrega el include ANTES
 target_include_directories(Motor PRIVATE 
     ${IL_INCLUDE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/glut_simple_example/glut_simple_example
 )
+
 
 # Copy Assets folder to build directory
 add_custom_command(TARGET Motor POST_BUILD

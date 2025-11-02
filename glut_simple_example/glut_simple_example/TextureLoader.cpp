@@ -39,3 +39,4 @@ unsigned int LoadTexture2D(const std::string& path) {
     ilBindImage(0);
     ilDeleteImages(1, &img);
     return tex;
+}
