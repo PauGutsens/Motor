@@ -1,7 +1,7 @@
 ﻿#include "EditorWindows.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
-#include "imgui_impl_opengl3.h"   // ⭐ 改用 OpenGL3 后端
+#include "imgui_impl_opengl3.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 #include <filesystem>
@@ -12,7 +12,7 @@
 using std::string;
 namespace fs = std::filesystem;
 
-// ========== 内部工具 ==========
+// Utility function to get texture size from OpenGL
 static void glTextureSize(GLuint tex, int& w, int& h) {
     w = h = 0;
     if (!tex) return;
@@ -23,15 +23,11 @@ static void glTextureSize(GLuint tex, int& w, int& h) {
     w = tw; h = th;
 }
 
-// ========== 初始化/销毁/场景指针 ==========
 void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-
-    // SDL + OpenGL3 后端初始化；GLSL 版本建议 130（OpenGL 3.0）
     ImGui_ImplSDL3_InitForOpenGL(window, gl);
     ImGui_ImplOpenGL3_Init("#version 130");
-
     LOG_INFO("ImGui initialized (OpenGL3 backend).");
 }
 
@@ -48,19 +44,16 @@ void EditorWindows::setScene(std::vector<std::shared_ptr<GameObject>>* scene,
     selected_ = selected;
 }
 
-// ========== 每帧入口 ==========
 void EditorWindows::render() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
-    // FPS 统计
     ImGuiIO& io = ImGui::GetIO();
     fps_history_[fps_index_] = io.Framerate;
     fps_index_ = (fps_index_ + 1) % kFpsHistory;
 
     drawMainMenu();
-
     if (show_console_)   drawConsole();
     if (show_config_)    drawConfig();
     if (show_hierarchy_) drawHierarchy();
@@ -68,12 +61,12 @@ void EditorWindows::render() {
 
     if (show_about_) {
         if (ImGui::Begin("About", &show_about_)) {
-            ImGui::TextUnformatted("Nombre del motor: Motor - FBX Loader");
+            ImGui::TextUnformatted("Engine: Motor - FBX Loader");
             ImGui::TextUnformatted("Version: 0.1.0");
             ImGui::Separator();
-            ImGui::TextUnformatted("Miembros del equipo: (rellenar)");
-            ImGui::TextUnformatted("Librerias: SDL3, OpenGL, GLEW, ImGui, Assimp, DevIL");
-            ImGui::TextUnformatted("Licencia: MIT");
+            ImGui::TextUnformatted("Team Members: (fill names)");
+            ImGui::TextUnformatted("Libraries: SDL3, OpenGL, GLEW, ImGui, Assimp, DevIL");
+            ImGui::TextUnformatted("License: MIT");
             ImGui::End();
         }
     }
@@ -82,16 +75,12 @@ void EditorWindows::render() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-// ========== 菜单栏 ==========
 void EditorWindows::drawMainMenu() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Exit", "Esc")) {
-                wants_quit_ = true;
-            }
+            if (ImGui::MenuItem("Exit", "Esc")) wants_quit_ = true;
             ImGui::EndMenu();
         }
-
         if (ImGui::BeginMenu("View")) {
             ImGui::MenuItem("Console", nullptr, &show_console_);
             ImGui::MenuItem("Config", nullptr, &show_config_);
@@ -99,32 +88,16 @@ void EditorWindows::drawMainMenu() {
             ImGui::MenuItem("Inspector", nullptr, &show_inspector_);
             ImGui::EndMenu();
         }
-
         if (ImGui::BeginMenu("Primitives")) {
-            if (ImGui::MenuItem("Load Cube (Assets/Primitives/Cube.fbx)")) {
-                loadPrimitiveFromAssets("Cube.fbx");
-            }
-            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Sphere.fbx)")) {
-                loadPrimitiveFromAssets("Sphere.fbx");
-            }
-            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Cone.fbx)")) {
-                loadPrimitiveFromAssets("Cone.fbx");
-            }
-            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Cylinder.fbx)")) {
-                loadPrimitiveFromAssets("Cylinder.fbx");
-            }
-            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Torus.fbx)")) {
-                loadPrimitiveFromAssets("Torus.fbx");
-            }
-            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Plane.fbx)")) {
-                loadPrimitiveFromAssets("Plane.fbx");
-            }
-            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Disc.fbx)")) {
-                loadPrimitiveFromAssets("Disc.fbx");
-            }
+            if (ImGui::MenuItem("Load Cube"))      loadPrimitiveFromAssets("Cube.fbx");
+            if (ImGui::MenuItem("Load Sphere"))    loadPrimitiveFromAssets("Sphere.fbx");
+            if (ImGui::MenuItem("Load Cone"))      loadPrimitiveFromAssets("Cone.fbx");
+            if (ImGui::MenuItem("Load Cylinder"))  loadPrimitiveFromAssets("Cylinder.fbx");
+            if (ImGui::MenuItem("Load Torus"))     loadPrimitiveFromAssets("Torus.fbx");
+            if (ImGui::MenuItem("Load Plane"))     loadPrimitiveFromAssets("Plane.fbx");
+            if (ImGui::MenuItem("Load Disc"))      loadPrimitiveFromAssets("Disc.fbx");
             ImGui::EndMenu();
         }
-
         if (ImGui::BeginMenu("Help")) {
             static const char* REPO = "https://github.com/your_org/your_repo";
             if (ImGui::MenuItem("GitHub Docs"))       SDL_OpenURL((std::string(REPO) + "/docs").c_str());
@@ -138,7 +111,6 @@ void EditorWindows::drawMainMenu() {
     }
 }
 
-// ========== Console 窗口 ==========
 void EditorWindows::drawConsole() {
     ImGui::SetNextWindowSize(ImVec2(600, 220), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Console", &show_console_)) { ImGui::End(); return; }
@@ -146,7 +118,6 @@ void EditorWindows::drawConsole() {
     static ImGuiTextFilter filter;
     static bool auto_scroll = true;
     filter.Draw("Filter");
-
     ImGui::Separator();
     ImGui::BeginChild("scroll_region", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
     auto logs = Logger::instance().snapshot();
@@ -162,39 +133,30 @@ void EditorWindows::drawConsole() {
     if (auto_scroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
         ImGui::SetScrollHereY(1.0f);
     ImGui::EndChild();
-
     ImGui::Checkbox("Auto-scroll", &auto_scroll);
     ImGui::SameLine();
     if (ImGui::Button("Clear")) {
         Logger::instance().setMaxEntries(0);
         Logger::instance().setMaxEntries(1000);
     }
-
     ImGui::End();
 }
 
-// ========== Config 窗口 ==========
 void EditorWindows::drawConfig() {
     ImGui::SetNextWindowSize(ImVec2(420, 380), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Config", &show_config_)) { ImGui::End(); return; }
-
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::PlotLines("Framerate", fps_history_, kFpsHistory,
-        fps_index_, nullptr, 0.0f, 200.0f, ImVec2(-1, 80));
-
+    ImGui::PlotLines("Framerate", fps_history_, kFpsHistory, fps_index_, nullptr, 0.0f, 200.0f, ImVec2(-1, 80));
     ImGui::Separator();
     ImGui::Text("OpenGL : %s", (const char*)glGetString(GL_VERSION));
     ImGui::Text("GPU    : %s", (const char*)glGetString(GL_RENDERER));
     ImGui::Text("Vendor : %s", (const char*)glGetString(GL_VENDOR));
-
     ImGui::Separator();
     ImGui::Text("SDL CPU cores : %d", SDL_GetNumLogicalCPUCores());
     ImGui::Text("SDL SystemRAM : %d MB", SDL_GetSystemRAM());
-
     ImGui::End();
 }
 
-// ========== Hierarchy 窗口 ==========
 void EditorWindows::drawHierarchy() {
     ImGui::SetNextWindowSize(ImVec2(260, 420), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Hierarchy", &show_hierarchy_)) { ImGui::End(); return; }
@@ -212,7 +174,6 @@ void EditorWindows::drawHierarchy() {
     ImGui::End();
 }
 
-// ========== Inspector 窗口 ==========
 void EditorWindows::ensureChecker() {
     if (checker_tex_) return;
     const int W = 128, H = 128; checker_w_ = W; checker_h_ = H;
@@ -230,7 +191,7 @@ void EditorWindows::ensureChecker() {
 }
 
 void EditorWindows::drawInspector() {
-    ImGui::SetNextWindowSize(ImVec2(360, 420), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360, 520), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Inspector", &show_inspector_)) { ImGui::End(); return; }
     if (!selected_ || !(*selected_)) { ImGui::TextDisabled("No selection."); ImGui::End(); return; }
 
@@ -238,128 +199,118 @@ void EditorWindows::drawInspector() {
     ImGui::Text("Name: %s", go->name.c_str());
     ImGui::Separator();
 
-    //Transform
+    // Transform
     auto& T = go->transform;
+    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto pos = T.pos();
+        float p[3] = { (float)pos.x, (float)pos.y, (float)pos.z };
+        if (ImGui::DragFloat3("Position", p, 0.1f)) T.setPosition({ p[0], p[1], p[2] });
+        ImGui::SameLine(); if (ImGui::Button("Reset##pos")) T.setPosition({ 0,0,0 });
 
-    ImGui::Separator();
-    ImGui::Text("Transform");
-    ImGui::PushID("TransformBlock");
-
-    // Position
-    {
-        auto P = T.pos();
-        float v[3] = { (float)P.x, (float)P.y, (float)P.z };
-        bool changed = ImGui::DragFloat3("Position", v, 0.1f, -10000.0f, 10000.0f, "%.3f");
-        if (changed) T.setPosition(vec3(v[0], v[1], v[2]));
-        ImGui::SameLine();
-        if (ImGui::Button("Reset##pos")) { T.setPosition(vec3(0, 0, 0)); }
-    }
-
-    // Rotation
-    {
-        static float deg[3] = { 0,0,0 };
+        static float rot[3] = { 0,0,0 };
         static float last[3] = { 0,0,0 };
-        if (ImGui::DragFloat3("Rotation", deg, 0.2f, -100000.0f, 100000.0f, "%.2f")) {
-            float d[3] = { deg[0] - last[0], deg[1] - last[1], deg[2] - last[2] };
-            T.rotateEulerDeltaDeg(vec3(d[0], d[1], d[2]));
-            memcpy(last, deg, sizeof(deg));
+        if (ImGui::DragFloat3("Rotation", rot, 0.2f)) {
+            float d[3] = { rot[0] - last[0], rot[1] - last[1], rot[2] - last[2] };
+            T.rotateEulerDeltaDeg({ d[0], d[1], d[2] });
+            memcpy(last, rot, sizeof(rot));
         }
+        ImGui::SameLine(); if (ImGui::Button("Reset##rot")) { T.resetRotation(); memset(rot, 0, sizeof(rot)); memset(last, 0, sizeof(last)); }
+
+        auto sc = T.getScale();
+        float s[3] = { (float)sc.x, (float)sc.y, (float)sc.z };
+        if (ImGui::DragFloat3("Scale", s, 0.05f, 0.001f, 1000.0f)) T.setScale({ s[0], s[1], s[2] });
+        ImGui::SameLine(); if (ImGui::Button("Reset##scale")) T.resetScale();
+
+        auto L = T.left(), U = T.up(), F = T.fwd();
+        ImGui::Text("Left: (%.3f,%.3f,%.3f)", L.x, L.y, L.z);
+        ImGui::Text("Up: (%.3f,%.3f,%.3f)", U.x, U.y, U.z);
+        ImGui::Text("Forward: (%.3f,%.3f,%.3f)", F.x, F.y, F.z);
+    }
+
+    // Mesh info
+    if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (go->mesh) {
+            ImGui::Text("Vertices: %zu", go->mesh->getVertexCount());
+            ImGui::Text("Triangles: %zu", go->mesh->getTriangleCount());
+            ImGui::Separator();
+            ImGui::Checkbox("Show Vertex Normals", &go->mesh->showVertexNormals);
+            ImGui::Checkbox("Show Face Normals", &go->mesh->showFaceNormals);
+            if (go->mesh->showVertexNormals || go->mesh->showFaceNormals) {
+                float normalLen = (float)go->mesh->normalLength;
+                if (ImGui::SliderFloat("Normal Length", &normalLen, 0.01f, 2.0f))
+                    go->mesh->normalLength = normalLen;
+            }
+        }
+        else ImGui::TextDisabled("No mesh attached.");
+    }
+
+    // Texture
+    if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen)) {
+        unsigned int texID = go->getTextureID();
+        int tw = 0, th = 0; if (texID) glTextureSize(texID, tw, th);
+        ImGui::Text("Texture ID: %u", texID);
+        ImGui::Text("Size: %dx%d", tw, th);
+        ImGui::Separator();
+        ensureChecker();
+        ImGui::BeginDisabled(texID == checker_tex_);
+        if (ImGui::Button("Apply Checkerboard")) {
+            if (prev_tex_.find(go.get()) == prev_tex_.end())
+                prev_tex_[go.get()] = texID;
+            go->setTexture(checker_tex_);
+            LOG_INFO("Applied checkerboard texture to " + go->name);
+        }
+        ImGui::EndDisabled();
         ImGui::SameLine();
-        if (ImGui::Button("Reset##rot")) {
-            T.resetRotation();
-            deg[0] = deg[1] = deg[2] = 0.0f; last[0] = last[1] = last[2] = 0.0f;
+        bool canRestore = prev_tex_.find(go.get()) != prev_tex_.end();
+        ImGui::BeginDisabled(!canRestore);
+        if (ImGui::Button("Restore Texture")) {
+            go->setTexture(prev_tex_[go.get()]);
+            prev_tex_.erase(go.get());
+            LOG_INFO("Restored original texture for " + go->name);
+        }
+        ImGui::EndDisabled();
+        if (texID != 0 && tw > 0 && th > 0) {
+            ImGui::Separator();
+            ImGui::Text("Preview:");
+            float previewSize = 200.0f;
+            float ar = (float)tw / (float)th;
+            ImVec2 size = ar > 1.0f ? ImVec2(previewSize, previewSize / ar) : ImVec2(previewSize * ar, previewSize);
+            ImGui::Image((ImTextureID)(intptr_t)texID, size);
         }
     }
-
-    // Scale
-    {
-        vec3 S = T.getScale();
-        float s[3] = { (float)S.x, (float)S.y, (float)S.z };
-        bool changed = ImGui::DragFloat3("Scale", s, 0.05f, 0.001f, 1000.0f, "%.3f");
-        if (changed) T.setScale(vec3(s[0], s[1], s[2]));
-        ImGui::SameLine();
-        if (ImGui::Button("Reset##scale")) { T.resetScale(); }
-    }
-
-    ImGui::PopID();
-
-
-    ImGui::Separator();
-    ImGui::Text("Mesh");
-    ImGui::TextDisabled("(vertex/triangle counts: add here if Mesh exposes them)");
-
-    // Texture 信息 + 棋盘格
-    ImGui::Separator();
-    ImGui::Text("Texture");
-
-    unsigned int texID = 0;
-#ifdef __has_include
-#if __has_include("GameObject.h")
-    texID = go->getTextureID(); // 需要 GameObject/Mesh 提供 getter（见我之前的补丁）
-#endif
-#endif
-
-    int tw = 0, th = 0;
-    if (texID) glTextureSize(texID, tw, th);
-    ImGui::Text("ID: %u, Size: %dx%d", texID, tw, th);
-
-    ensureChecker();
-    ImGui::BeginDisabled(texID == checker_tex_);
-    if (ImGui::Button("Apply Checkerboard")) {
-        if (prev_tex_.find(go.get()) == prev_tex_.end())
-            prev_tex_[go.get()] = texID;
-        go->setTexture(checker_tex_);
-        LOG_INFO("Applied checkerboard texture to " + go->name);
-    }
-    ImGui::EndDisabled();
-
-    ImGui::SameLine();
-    bool canRestore = prev_tex_.find(go.get()) != prev_tex_.end();
-    ImGui::BeginDisabled(!canRestore);
-    if (ImGui::Button("Restore Texture")) {
-        go->setTexture(prev_tex_[go.get()]);
-        prev_tex_.erase(go.get());
-        LOG_INFO("Restored original texture for " + go->name);
-    }
-    ImGui::EndDisabled();
 
     ImGui::End();
 }
 
-// ========== 资源路径与基础几何 ==========
 std::string EditorWindows::getAssetsPath() {
     auto cwd = fs::current_path();
-
     auto try_find = [](fs::path start)->std::string {
         fs::path p = start;
         for (int i = 0; i < 6; ++i) {
             fs::path c = p / "Assets";
-            if (fs::exists(c) && fs::is_directory(c)) return c.string();
-            if (!p.has_parent_path()) break;
+            if (fs::exists(c) && fs::is_directory(c))return c.string();
+            if (!p.has_parent_path())break;
             p = p.parent_path();
         }
         return "";
         };
-
-    if (auto s = try_find(cwd); !s.empty()) return s;
+    if (auto s = try_find(cwd); !s.empty())return s;
     const char* base = SDL_GetBasePath();
-    if (base) if (auto s = try_find(fs::path(base)); !s.empty()) return s;
+    if (base)if (auto s = try_find(fs::path(base)); !s.empty())return s;
     return "Assets";
 }
 
 void EditorWindows::loadPrimitiveFromAssets(const std::string& name) {
-    if (!scene_) return;
+    if (!scene_)return;
     std::string assets = getAssetsPath();
     fs::path p = fs::absolute(fs::path(assets) / "Primitives" / name);
     auto meshes = ModelLoader::loadModel(p.string());
-    if (meshes.empty()) {
-        LOG_ERROR(std::string("Failed to load primitive: ") + p.string());
-        return;
-    }
+    if (meshes.empty()) { LOG_ERROR("Failed to load primitive: " + p.string()); return; }
     for (size_t i = 0; i < meshes.size(); ++i) {
         auto go = std::make_shared<GameObject>(name + "_" + std::to_string(i));
         go->setMesh(meshes[i]);
         scene_->push_back(go);
     }
-    LOG_INFO(std::string("Loaded primitive: ") + p.string());
+    LOG_INFO("Loaded primitive: " + p.string());
 }
+

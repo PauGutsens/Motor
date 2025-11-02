@@ -5,7 +5,7 @@
 #include <string>
 #include <GL/glew.h>
 
-// 顶点：位置/法线为双精度 vec3（与你的 types.h 一致），UV 为 float2 Vertice: La posicion/normal es vec3 de doble precision (consistente con types.h), UV es float2.
+// Vertex structure: position/normal use double precision vec3 (consistent with types.h), UV uses float2
 struct Vertex {
     vec3       position;
     vec3       normal;
@@ -18,14 +18,18 @@ public:
     std::vector<unsigned int>   indices;
     unsigned int getTextureID() const;
 
-
-    // GPU 资源
+    // GPU resources
     GLuint VAO = 0;
     GLuint VBO = 0;
     GLuint EBO = 0;
 
-    // 统一仅保留一个纹理字段 Solo se conserva un campo de textura.
+    // Single texture field
     GLuint textureID = 0;
+
+    // Normal visualization options
+    bool showVertexNormals = false;
+    bool showFaceNormals = false;
+    double normalLength = 0.2;
 
     Mesh() = default;
     Mesh(const std::vector<Vertex>& verts, const std::vector<unsigned int>& inds);
@@ -35,10 +39,17 @@ public:
     void draw() const;
     void cleanup();
 
-    // 统一接口 Interfaz unificada
+    // Unified interface
     void setTexture(GLuint texID) { textureID = texID; }
     unsigned int getTexture() const { return textureID; }
 
+    // Mesh statistics
+    size_t getVertexCount() const { return vertices.size(); }
+    size_t getTriangleCount() const { return indices.empty() ? vertices.size() / 3 : indices.size() / 3; }
+
 private:
     bool _isSetup = false;
+
+    void drawVertexNormals() const;
+    void drawFaceNormals() const;
 };
