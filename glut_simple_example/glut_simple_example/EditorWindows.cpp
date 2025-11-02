@@ -107,6 +107,21 @@ void EditorWindows::drawMainMenu() {
             if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Sphere.fbx)")) {
                 loadPrimitiveFromAssets("Sphere.fbx");
             }
+            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Cone.fbx)")) {
+                loadPrimitiveFromAssets("Cone.fbx");
+            }
+            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Cylinder.fbx)")) {
+                loadPrimitiveFromAssets("Cylinder.fbx");
+            }
+            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Torus.fbx)")) {
+                loadPrimitiveFromAssets("Torus.fbx");
+            }
+            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Plane.fbx)")) {
+                loadPrimitiveFromAssets("Plane.fbx");
+            }
+            if (ImGui::MenuItem("Load Sphere (Assets/Primitives/Disc.fbx)")) {
+                loadPrimitiveFromAssets("Disc.fbx");
+            }
             ImGui::EndMenu();
         }
 
