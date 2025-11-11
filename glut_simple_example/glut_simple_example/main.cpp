@@ -275,7 +275,7 @@ int main(int argc, char* argv[]) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     int screenWidth = 1280, screenHeight = 720;
-    window = SDL_CreateWindow("Motor - FBX Loader", screenWidth, screenHeight,
+    window = SDL_CreateWindow("Motor", screenWidth, screenHeight,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!window) {
         cout << "Window could not be created! " << SDL_GetError() << endl;
