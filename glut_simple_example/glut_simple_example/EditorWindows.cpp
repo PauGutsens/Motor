@@ -194,6 +194,19 @@ void EditorWindows::drawHierarchy() {
         });
 
     ImGui::BeginChild("HierarchyTree", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+    if (ImGui::BeginPopupContextWindow("HierarchyBgContext",
+        ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+    {
+        if (ImGui::MenuItem("Create Empty")) {
+            auto go = std::make_shared<GameObject>("Empty");
+            scene_->push_back(go);
+            setSelection(go);
+            pendingFocus_ = go.get();
+        }
+        ImGui::EndPopup();
+    }
+
     for (auto* r : roots) drawHierarchyNode(r);
     ImGui::EndChild();
 
@@ -214,6 +227,18 @@ void EditorWindows::drawHierarchyNode(GameObject* go) {
     ImGui::SetNextItemOpen(isOpen, ImGuiCond_Always);
 
     bool open = ImGui::TreeNodeEx((void*)go, flags, "%s", go->name.c_str());
+
+    if (ImGui::BeginPopupContextItem()) {
+        if (ImGui::MenuItem("Create Empty")) {
+            auto child = std::make_shared<GameObject>("Empty");
+            scene_->push_back(child);
+            go->addChild(child.get());
+            openNodes_.insert(go);
+            setSelection(child);
+            pendingFocus_ = child.get();
+        }
+        ImGui::EndPopup();
+    }
 
     if (ImGui::IsItemClicked()) {
         if (selected_ && *selected_) (*selected_)->isSelected = false;
