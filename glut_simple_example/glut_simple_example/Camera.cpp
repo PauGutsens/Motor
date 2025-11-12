@@ -1,204 +1,179 @@
-﻿#include "Camera.h"
+﻿#define GLM_ENABLE_EXPERIMENTAL
+#include "Camera.h"
 #include <glm/gtc/matrix_transform.hpp>
-#include <SDL3/SDL.h>
+#include <glm/gtx/quaternion.hpp>
 #include <algorithm>
+#include <cmath>
 
-static SDL_Window* GetCurrentWindow()
-{
-    extern SDL_Window* window;
-    return window;
-}
+extern SDL_Window* window;
 
-glm::dmat4 Camera::projection() const
-{
+mat4 Camera::projection() const {
     return glm::perspective(fov, aspect, zNear, zFar);
 }
 
-glm::dmat4 Camera::view() const
-{
-    return glm::lookAt(_transform.pos(), _transform.pos() + _transform.fwd(), _transform.up());
+mat4 Camera::view() const {
+    // base Transform + normal
+    vec3 f = glm::normalize(transform.fwd());
+    vec3 u = glm::normalize(transform.up());
+    vec3 p = transform.pos();
+    return glm::lookAt(p, p + f, u);
 }
 
-void Camera::onMouseButton(int button, int state, int x, int y)
-{
-    if (button == SDL_BUTTON_RIGHT) {
-        _rightMouseDown = (state == 1);
-        if (_rightMouseDown) {
-            _lastMouseX = x;
-            _lastMouseY = y;
-            SDL_CaptureMouse(true);
-        }
-        else { SDL_CaptureMouse(false); }
+void Camera::onMouseButton(uint8_t button, int state, int x, int y) {
+    if (state == 1) { _lastX = x; _lastY = y; _haveLast = true; }
 
-    }
-    else if (button == SDL_BUTTON_MIDDLE) {
-        _middleMouseDown = (state == 1);
-        if (_middleMouseDown) { _lastMouseX = x; _lastMouseY = y; }
+    if (button == SDL_BUTTON_RIGHT) {
+        _rmb = (state == 1);
+        // modo Fly
+        SDL_SetWindowRelativeMouseMode(window, _rmb ? true : false);
     }
     else if (button == SDL_BUTTON_LEFT) {
-        _leftMouseDown = (state == 1);
-        if (_leftMouseDown) { _lastMouseX = x; _lastMouseY = y; }
+        _lmb = (state == 1);
+    }
+    else if (button == SDL_BUTTON_MIDDLE) {
+        _mmb = (state == 1);
     }
 }
 
-void Camera::onMouseMove(int x, int y)
-{
-    int deltaX = x - _lastMouseX;
-    int deltaY = y - _lastMouseY;
+void Camera::onMouseMove(int x, int y) {
+    if (!_haveLast) { _lastX = x; _lastY = y; _haveLast = true; return; }
+    int dx = x - _lastX;
+    int dy = y - _lastY;
+    _lastX = x; _lastY = y;
 
-    if (_rightMouseDown && !_altPressed && !_shiftPressed)
-    {
-        _yaw += deltaX * lookSensitivity;
-        _pitch -= deltaY * lookSensitivity;
-        const double maxPitch = glm::radians(89.0);
-        _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
-        updateOrientation();
-        _lastMouseX = x;
-        _lastMouseY = y;
+    // Prioridad de modos
+    if (_alt && _lmb)        _orbitPixels(dx, dy);
+    else if (_mmb || (_rmb && _shift)) _panPixels(dx, dy);
+    else if (_rmb)           _freeLookPixels(dx, dy);
+}
+
+void Camera::onMouseWheel(int direction) {
+    _dollySteps(direction);
+}
+
+void Camera::onKeyDown(int scancode) {
+    switch (scancode) {
+    case SDL_SCANCODE_LALT: case SDL_SCANCODE_RALT:   _alt = true; break;
+    case SDL_SCANCODE_LSHIFT: case SDL_SCANCODE_RSHIFT: _shift = true; break;
+    case SDL_SCANCODE_W: _w = true; break;
+    case SDL_SCANCODE_A: _a = true; break;
+    case SDL_SCANCODE_S: _s = true; break;
+    case SDL_SCANCODE_D: _d = true; break;
+    case SDL_SCANCODE_Q: _q = true; break;
+    case SDL_SCANCODE_E: _e = true; break;
+    default: break;
     }
-    else if ((_rightMouseDown && _shiftPressed) || _middleMouseDown) {
-        handlePan(deltaX, deltaY);
-        _lastMouseX = x;
-        _lastMouseY = y;
+}
+
+void Camera::onKeyUp(int scancode) {
+    switch (scancode) {
+    case SDL_SCANCODE_LALT: case SDL_SCANCODE_RALT:   _alt = false; break;
+    case SDL_SCANCODE_LSHIFT: case SDL_SCANCODE_RSHIFT: _shift = false; break;
+    case SDL_SCANCODE_W: _w = false; break;
+    case SDL_SCANCODE_A: _a = false; break;
+    case SDL_SCANCODE_S: _s = false; break;
+    case SDL_SCANCODE_D: _d = false; break;
+    case SDL_SCANCODE_Q: _q = false; break;
+    case SDL_SCANCODE_E: _e = false; break;
+    default: break;
     }
-    else if (_leftMouseDown && _altPressed)
-    {
-        handleOrbit(deltaX, deltaY);
-        _lastMouseX = x;
-        _lastMouseY = y;
+}
+
+void Camera::update(double dt) {
+    _moveFPS(dt);
+    _applyYawPitchToBasis();
+}
+
+void Camera::focusOn(const vec3& targetCenter, double radius) {
+    _orbitTarget = targetCenter;
+    double d = std::max(0.001, 1.2 * radius / std::tan(fov * 0.5));
+    _orbitDistance = d;
+
+    vec3 f = glm::normalize(transform.fwd());
+    vec3 newPos = _orbitTarget - f * _orbitDistance;
+    transform.pos() = newPos;
+}
+
+void Camera::_applyYawPitchToBasis() {
+    const double limit = glm::radians(89.0);
+    _pitch = std::clamp(_pitch, -limit, limit);
+
+    double cp = std::cos(_pitch), sp = std::sin(_pitch);
+    double cy = std::cos(_yaw), sy = std::sin(_yaw);
+    vec3 f = vec3(cp * sy, sp, cp * cy);
+    vec3 r = glm::normalize(glm::cross(f, _worldUp()));
+    vec3 u = glm::normalize(glm::cross(r, f));
+    vec3 l = -r;
+
+    mat4& M = transform.mat_mutable();
+    M[0] = vec4(l, 0.0);
+    M[1] = vec4(u, 0.0);
+    M[2] = vec4(f, 0.0);
+    M[3] = vec4(transform.pos(), 1.0);
+}
+
+void Camera::_freeLookPixels(int dx, int dy) {
+    _yaw -= dx * lookSensitivity;
+    _pitch -= dy * lookSensitivity;
+}
+
+void Camera::_orbitPixels(int dx, int dy) {
+    // órbita alrededor del tarjet
+    _yaw -= dx * lookSensitivity;
+    _pitch -= dy * lookSensitivity;
+    _applyYawPitchToBasis();
+
+    vec3 f = glm::normalize(transform.fwd());
+    transform.pos() = _orbitTarget - f * _orbitDistance;
+}
+
+void Camera::_panPixels(int dx, int dy) {
+    vec3 f = glm::normalize(transform.fwd());
+    vec3 r = -glm::normalize(transform.left());
+    vec3 u = glm::normalize(transform.up());
+
+    double refDist = _orbitDistance;
+    if (refDist <= 0.0) {
+        refDist = 1.0;
+    }
+    double s = panSpeed * refDist;
+    transform.pos() += (-r * (double)dx + u * (double)dy) * s;
+}
+
+void Camera::_moveFPS(double dt) {
+    if (!_rmb) return;
+
+    double speed = moveSpeed * (_shift ? 2.0 : 1.0);
+    vec3 f = glm::normalize(transform.fwd());
+    vec3 r = -glm::normalize(transform.left());
+    vec3 move(0.0);
+
+    if (_w) move += f;
+    if (_s) move -= f;
+    if (_a) move -= r;
+    if (_d) move += r;
+    if (_q) move += vec3(0, -1, 0);
+    if (_e) move += vec3(0, 1, 0);
+
+    if (glm::length(move) > 0.0) {
+        move = glm::normalize(move) * (speed * dt);
+        transform.pos() += move;
+    }
+}
+
+void Camera::_dollySteps(int steps) {
+    if (steps == 0) return;
+
+    vec3 f = glm::normalize(transform.fwd());
+    double ref = std::max(0.001, _orbitDistance);
+    double delta = (double)steps * zoomSpeed * std::max(0.2, ref * 0.1);
+
+    if (_alt || _lmb) {
+        _orbitDistance = std::max(0.001, _orbitDistance - delta);
+        transform.pos() = _orbitTarget - f * _orbitDistance;
     }
     else {
-        _lastMouseX = x;
-        _lastMouseY = y;
+        transform.pos() += f * delta;
+        _orbitDistance = glm::length(_orbitTarget - transform.pos());
     }
-}
-
-void Camera::onMouseWheel(int direction)
-{
-    double zoomAmount = direction * zoomSpeed;
-    _transform.translate(vec3(0, 0, -zoomAmount));
-}
-
-void Camera::onKeyDown(unsigned char key)
-{
-    switch (key) {
-    case SDL_SCANCODE_W: _keyW = true; break;
-    case SDL_SCANCODE_A: _keyA = true; break;
-    case SDL_SCANCODE_S: _keyS = true; break;
-    case SDL_SCANCODE_D: _keyD = true; break;
-    case SDL_SCANCODE_F: focusOn(orbitTarget, orbitDistance); break;
-    }
-}
-
-void Camera::onKeyUp(unsigned char key)
-{
-    switch (key) {
-    case SDL_SCANCODE_W: _keyW = false; break;
-    case SDL_SCANCODE_A: _keyA = false; break;
-    case SDL_SCANCODE_S: _keyS = false; break;
-    case SDL_SCANCODE_D: _keyD = false; break;
-    }
-}
-
-void Camera::onSpecialKeyDown(int key)
-{
-    switch (key) {
-    case SDL_SCANCODE_LSHIFT:
-    case SDL_SCANCODE_RSHIFT:
-        _shiftPressed = true;
-        break;
-    case SDL_SCANCODE_LALT:
-    case SDL_SCANCODE_RALT:
-        _altPressed = true;
-        break;
-    }
-}
-
-void Camera::onSpecialKeyUp(int key)
-{
-    switch (key) {
-    case SDL_SCANCODE_LSHIFT:
-    case SDL_SCANCODE_RSHIFT:
-        _shiftPressed = false;
-        break;
-    case SDL_SCANCODE_LALT:
-    case SDL_SCANCODE_RALT:
-        _altPressed = false;
-        break;
-    }
-}
-
-void Camera::update(double deltaTime)
-{
-    if (_rightMouseDown && !_shiftPressed && !_altPressed) {
-        handleFPSMovement(deltaTime);
-    }
-}
-
-void Camera::focusOn(const vec3& target, double distance)
-{
-    orbitTarget = target;
-    orbitDistance = distance;
-    vec3 offset = _transform.fwd() * distance;
-    _transform.pos() = target - offset;
-}
-
-void Camera::updateOrientation()
-{
-    mat4 rotation = mat4(1.0);
-    rotation = glm::rotate(rotation, _yaw, vec3(0, 1, 0));
-    rotation = glm::rotate(rotation, _pitch, vec3(1, 0, 0));
-    vec3 forward = vec3(rotation * vec4(0, 0, -1, 0));
-    vec3 right = glm::normalize(glm::cross(forward, vec3(0, 1, 0)));
-    vec3 up = glm::normalize(glm::cross(right, forward));
-    vec3 currentPos = _transform.pos();
-    auto& m = _transform.mat_mutable();
-    m[0] = vec4(right, 0);
-    m[1] = vec4(up, 0);
-    m[2] = vec4(-forward, 0);
-    m[3] = vec4(currentPos, 1);
-}
-
-void Camera::handleFPSMovement(double deltaTime)
-{
-    double speed = moveSpeed * deltaTime;
-    if (_shiftPressed) {
-        speed *= 2.0;
-    }
-    vec3 movement(0);
-    if (_keyW) movement += _transform.fwd();
-    if (_keyS) movement -= _transform.fwd();
-    if (_keyA) movement += _transform.left();
-    if (_keyD) movement -= _transform.left();
-    if (glm::length(movement) > 0.001) {
-        movement = glm::normalize(movement) * speed;
-        _transform.translate(movement);
-    }
-}
-
-void Camera::handlePan(int deltaX, int deltaY)
-{
-    vec3 right = -_transform.left();
-    vec3 up = _transform.up();
-    vec3 delta = (-deltaX * panSpeed) * right + (deltaY * panSpeed) * up;
-    _transform.translate(delta);
-}
-
-
-void Camera::handleOrbit(int deltaX, int deltaY)
-{
-    _yaw -= deltaX * lookSensitivity;
-    _pitch += deltaY * lookSensitivity;
-    const double maxPitch = glm::radians(89.0);
-    _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
-    double cosYaw = cos(_yaw);
-    double sinYaw = sin(_yaw);
-    double cosPitch = cos(_pitch);
-    double sinPitch = sin(_pitch);
-    vec3 offset;
-    offset.x = orbitDistance * cosPitch * sinYaw;
-    offset.y = orbitDistance * sinPitch;
-    offset.z = orbitDistance * cosPitch * cosYaw;
-    _transform.pos() = orbitTarget + offset;
-    updateOrientation();
 }

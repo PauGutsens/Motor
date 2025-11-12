@@ -1,55 +1,59 @@
+#define GLM_ENABLE_EXPERIMENTAL
 #pragma once
 #include "Transform.h"
+#include <glm/gtc/quaternion.hpp>
+#include <SDL3/SDL.h>
 
 class Camera {
-
 public:
-	double fov = glm::radians(60.0);
-	double aspect = 16.0 / 9.0;
-	double zNear = 0.1;
-	double zFar = 128.0;
-	double moveSpeed = 2.0;
-	double lookSensitivity = 0.003;
-	double zoomSpeed = 0.5;
-	double panSpeed = 0.01;
-	double orbitDistance = 5.0;
-	vec3 orbitTarget = vec3(0, 0, 0);
+    double fov = glm::radians(60.0);
+    double aspect = 16.0 / 9.0;
+    double zNear = 0.1;
+    double zFar = 128.0;
+
+    double moveSpeed = 6.0;
+    double lookSensitivity = 0.0025;
+    double panSpeed = 0.0025;
+    double zoomSpeed = 1.0;
+
+    Transform transform;
+
+    mat4 projection() const;
+    mat4 view() const;
+
+    void onMouseButton(uint8_t button, int state, int x, int y);
+    void onMouseMove(int x, int y);
+    void onMouseWheel(int direction);
+    void onKeyDown(int scancode);
+    void onKeyUp(int scancode);
+    void onSpecialKeyDown(int key) {}
+    void onSpecialKeyUp(int key) {}
+
+    void update(double dt);
+
+    void focusOn(const vec3& targetCenter, double radius = 1.0);
 
 private:
-	Transform _transform;
+    // teclas
+    bool _rmb = false, _lmb = false, _mmb = false;
+    bool _alt = false, _shift = false;
+    bool _w = false, _a = false, _s = false, _d = false, _q = false, _e = false;
 
-	bool _rightMouseDown = false;
-	bool _leftMouseDown = false;
-	bool _middleMouseDown = false;
-	bool _altPressed = false;
-	bool _shiftPressed = false;
-	int _lastMouseX = 0;
-	int _lastMouseY = 0;
-	bool _keyW = false;
-	bool _keyA = false;
-	bool _keyS = false;
-	bool _keyD = false;
-	double _yaw = 0.0;
-	double _pitch = 0.0;
+    // mouse
+    int _lastX = 0, _lastY = 0;
+    bool _haveLast = false;
 
-public:
-	const auto& transform() const { return _transform; }
-	auto& transform() { return _transform; }
-	mat4 projection() const;
-	mat4 view() const;
-	void onMouseButton(int button, int state, int x, int y);
-	void onMouseMove(int x, int y);
-	void onMouseWheel(int direction);
-	void onKeyDown(unsigned char key);
-	void onKeyUp(unsigned char key);
-	void onSpecialKeyDown(int key);
-	void onSpecialKeyUp(int key);
-	void update(double deltaTime);
-	void focusOn(const vec3& target, double distance = 5.0);
+    // orientación/órbita
+    double _yaw = 0.0;
+    double _pitch = 0.0;
+    vec3   _orbitTarget = vec3(0.0);
+    double _orbitDistance = 5.0;
 
-private:
-	void updateOrientation();
-	void handleFPSMovement(double deltaTime);
-	void handleOrbit(int deltaX, int deltaY);
-	void handlePan(int deltaX, int deltaY);
+    void _applyYawPitchToBasis();
+    void _panPixels(int dx, int dy);
+    void _orbitPixels(int dx, int dy);
+    void _freeLookPixels(int dx, int dy);
+    void _moveFPS(double dt);
+    void _dollySteps(int steps);
+    static vec3 _worldUp() { return vec3(0, 1, 0); }
 };

@@ -189,6 +189,13 @@ static void handle_input() {
             break;
         case SDL_EVENT_KEY_DOWN:
             if (event.key.scancode == SDL_SCANCODE_ESCAPE) running = false;
+
+            if (event.key.scancode == SDL_SCANCODE_F && selectedGameObject) {
+                vec3 center = selectedGameObject->transform.pos();
+                double radius = 1.5;
+                camera.focusOn(center, radius);
+            }
+
             camera.onKeyDown(event.key.scancode);
             break;
         case SDL_EVENT_KEY_UP:
@@ -289,12 +296,9 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     init_opengl();
-    camera.transform().pos() = vec3(0, 5, 10);
-    camera.orbitTarget = vec3(0, 0, 0);
+    camera.transform.pos() = vec3(0, 5, 10); 
+    //camera.orbitTarget = vec3(0, 0, 0);
     updateProjection(screenWidth, screenHeight);
-    cout << "========================================" << endl;
-    cout << "Loading BakerHouse..." << endl;
-    cout << "========================================" << endl;
     loadBakerHouse();
     cout << "========================================" << endl;
     cout << "Instructions:" << endl;
