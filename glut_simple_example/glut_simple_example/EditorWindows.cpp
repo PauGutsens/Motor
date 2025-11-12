@@ -155,17 +155,89 @@ void EditorWindows::drawHierarchy() {
     ImGui::SetNextWindowSize(ImVec2(260, 420), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Hierarchy", &show_hierarchy_)) { ImGui::End(); return; }
     if (!scene_) { ImGui::TextDisabled("No scene."); ImGui::End(); return; }
-    for (size_t i = 0; i < scene_->size(); ++i) {
-        auto& go = (*scene_)[i];
-        bool selected = selected_ && *selected_ && go.get() == selected_->get();
-        if (ImGui::Selectable(go->name.c_str(), selected)) {
-            if (selected_ && *selected_) (*selected_)->isSelected = false;
-            if (selected_) *selected_ = go;
-            go->isSelected = true;
+
+    if (ImGui::Button("Create Empty")) {
+        auto go = std::make_shared<GameObject>("Empty");
+        scene_->push_back(go);
+        if (selected_ && *selected_) {
+            GameObject* parent = selected_->get();
+            parent->addChild(go.get());
+            openNodes_.insert(parent);
         }
+        setSelection(go);
+        pendingFocus_ = go.get();
     }
+    ImGui::SameLine();
+    bool hasSel = selected_ && (*selected_);
+    ImGui::BeginDisabled(!hasSel);
+    if (ImGui::Button("Create Child")) {
+        auto go = std::make_shared<GameObject>("Empty");
+        scene_->push_back(go);
+        GameObject* parent = selected_->get();
+        parent->addChild(go.get());
+        setSelection(go);
+        openNodes_.insert(parent);
+        pendingFocus_ = go.get();
+    }
+    ImGui::EndDisabled();
+
+    ImGui::Separator();
+
+    std::vector<GameObject*> roots;
+    roots.reserve(scene_->size());
+    for (auto& sp : *scene_) {
+        GameObject* go = sp.get();
+        if (go->parent == nullptr) roots.push_back(go);
+    }
+    std::sort(roots.begin(), roots.end(), [](GameObject* a, GameObject* b) {
+        return a->name < b->name;
+        });
+
+    ImGui::BeginChild("HierarchyTree", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+    for (auto* r : roots) drawHierarchyNode(r);
+    ImGui::EndChild();
+
     ImGui::End();
 }
+
+void EditorWindows::drawHierarchyNode(GameObject* go) {
+    using namespace ImGui;
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
+        | ImGuiTreeNodeFlags_OpenOnDoubleClick
+        | ImGuiTreeNodeFlags_SpanFullWidth;
+
+    if (go->children.empty())
+        flags |= ImGuiTreeNodeFlags_Leaf;
+
+    bool isOpen = openNodes_.count(go) > 0;
+    ImGui::SetNextItemOpen(isOpen, ImGuiCond_Always);
+
+    bool open = ImGui::TreeNodeEx((void*)go, flags, "%s", go->name.c_str());
+
+    if (ImGui::IsItemClicked()) {
+        if (selected_ && *selected_) (*selected_)->isSelected = false;
+        std::shared_ptr<GameObject> sp;
+        if (scene_) {
+            for (auto& it : *scene_) if (it.get() == go) { sp = it; break; }
+        }
+        if (sp) setSelection(sp);
+    }
+
+    if (open) openNodes_.insert(go);
+    else      openNodes_.erase(go);
+
+    if (pendingFocus_ == go) {
+        ImGui::SetScrollHereY(0.25f);
+        pendingFocus_ = nullptr;
+    }
+
+    if (open) {
+        for (auto* c : go->children) drawHierarchyNode(c);
+        ImGui::TreePop();
+    }
+}
+
 
 void EditorWindows::ensureChecker() {
     if (checker_tex_) return;
@@ -210,9 +282,6 @@ void EditorWindows::drawInspector() {
         if (ImGui::DragFloat3("Scale", s, 0.05f, 0.001f, 1000.0f)) T.setScale({ s[0], s[1], s[2] });
         ImGui::SameLine(); if (ImGui::Button("Reset##scale")) T.resetScale();
         auto L = T.left(), U = T.up(), F = T.fwd();
-        ImGui::Text("Left: (%.3f,%.3f,%.3f)", L.x, L.y, L.z);
-        ImGui::Text("Up: (%.3f,%.3f,%.3f)", U.x, U.y, U.z);
-        ImGui::Text("Forward: (%.3f,%.3f,%.3f)", F.x, F.y, F.z);
     }
     if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (go->mesh) {
@@ -295,4 +364,14 @@ void EditorWindows::loadPrimitiveFromAssets(const std::string& name) {
         scene_->push_back(go);
     }
     LOG_INFO("Loaded primitive: " + p.string());
+}
+
+
+
+
+void EditorWindows::setSelection(const std::shared_ptr<GameObject>& go) {
+    if (!selected_) return;
+    if (*selected_) (*selected_)->isSelected = false;
+    *selected_ = go;
+    if (*selected_) (*selected_)->isSelected = true;
 }

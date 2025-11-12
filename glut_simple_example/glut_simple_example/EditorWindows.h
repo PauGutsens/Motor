@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include "types.h"
 #include "GameObject.h"
 #include "Logger.h"
@@ -33,13 +34,18 @@ private:
     std::unordered_map<GameObject*, unsigned int> prev_tex_;
     std::vector<std::shared_ptr<GameObject>>* scene_ = nullptr;
     std::shared_ptr<GameObject>* selected_ = nullptr;
+    std::unordered_set<GameObject*> openNodes_;
+    GameObject* pendingFocus_ = nullptr;
 
     void drawMainMenu();
     void drawConsole();
     void drawConfig();
     void drawHierarchy();
+    void drawHierarchyNode(GameObject*);
     void drawInspector();
     void ensureChecker();
     void loadPrimitiveFromAssets(const std::string& name);
     std::string getAssetsPath();
+
+    void setSelection(const std::shared_ptr<GameObject>& go);
 };
