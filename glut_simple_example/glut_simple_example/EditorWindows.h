@@ -36,6 +36,9 @@ private:
     std::shared_ptr<GameObject>* selected_ = nullptr;
     std::unordered_set<GameObject*> openNodes_;
     GameObject* pendingFocus_ = nullptr;
+    bool preserve_world_ = true;
+    GameObject* pendingDelete_ = nullptr; 
+
 
     void drawMainMenu();
     void drawConsole();
@@ -46,6 +49,14 @@ private:
     void ensureChecker();
     void loadPrimitiveFromAssets(const std::string& name);
     std::string getAssetsPath();
+
+    void deleteSelectedRecursive();
+    void collectPostorder(GameObject* root, std::vector<GameObject*>& out);
+    std::shared_ptr<GameObject> findShared(GameObject* raw);
+    void removeFromScene(GameObject* raw);
+    void reparent(GameObject* dragged, GameObject* target);
+    void reorderSibling(GameObject* node, GameObject* parent, int newIndex);
+    void reorderRoot(GameObject* node, int newIndex);
 
     void setSelection(const std::shared_ptr<GameObject>& go);
 };

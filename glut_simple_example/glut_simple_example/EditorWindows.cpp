@@ -168,18 +168,49 @@ void EditorWindows::drawHierarchy() {
         pendingFocus_ = go.get();
     }
     ImGui::SameLine();
+
     bool hasSel = selected_ && (*selected_);
     ImGui::BeginDisabled(!hasSel);
-    if (ImGui::Button("Create Child")) {
-        auto go = std::make_shared<GameObject>("Empty");
-        scene_->push_back(go);
-        GameObject* parent = selected_->get();
-        parent->addChild(go.get());
-        setSelection(go);
-        openNodes_.insert(parent);
-        pendingFocus_ = go.get();
+    if (ImGui::Button("Delete")) {
+        if (hasSel) {
+            pendingDelete_ = selected_->get();
+            if (!pendingDelete_->children.empty())
+                ImGui::OpenPopup("Confirm Delete");
+            else
+                deleteSelectedRecursive();
+        }
     }
     ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    ImGui::Checkbox("Preserve World", &preserve_world_);
+
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
+            if (hasSel) {
+                pendingDelete_ = selected_->get();
+                if (!pendingDelete_->children.empty())
+                    ImGui::OpenPopup("Confirm Delete");
+                else
+                    deleteSelectedRecursive();
+            }
+        }
+    }
+
+    if (ImGui::BeginPopupModal("Confirm Delete", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        int total = 1;
+        if (pendingDelete_) {
+            std::vector<GameObject*> tmp;
+            collectPostorder(pendingDelete_, tmp);
+            total = (int)tmp.size();
+        }
+        ImGui::Text("Eliminar '%s' y %d hijos?",
+            pendingDelete_ ? pendingDelete_->name.c_str() : "<none>", total - 1);
+        if (ImGui::Button("Eliminar", ImVec2(120, 0))) { deleteSelectedRecursive(); ImGui::CloseCurrentPopup(); }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancelar", ImVec2(120, 0))) { pendingDelete_ = nullptr; ImGui::CloseCurrentPopup(); }
+        ImGui::EndPopup();
+    }
 
     ImGui::Separator();
 
@@ -189,77 +220,143 @@ void EditorWindows::drawHierarchy() {
         GameObject* go = sp.get();
         if (go->parent == nullptr) roots.push_back(go);
     }
-    std::sort(roots.begin(), roots.end(), [](GameObject* a, GameObject* b) {
-        return a->name < b->name;
-        });
 
     ImGui::BeginChild("HierarchyTree", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-    if (ImGui::BeginPopupContextWindow("HierarchyBgContext",
-        ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
-    {
-        if (ImGui::MenuItem("Create Empty")) {
-            auto go = std::make_shared<GameObject>("Empty");
-            scene_->push_back(go);
-            setSelection(go);
-            pendingFocus_ = go.get();
+    for (auto* r : roots) drawHierarchyNode(r);
+
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("GO_PTR")) {
+            GameObject* dragged = *(GameObject* const*)payload->Data;
+            if (dragged && dragged->parent) {
+                reparent(dragged, nullptr);
+                auto sp = findShared(dragged);
+                if (sp) setSelection(sp);
+            }
         }
-        ImGui::EndPopup();
+        ImGui::EndDragDropTarget();
     }
 
-    for (auto* r : roots) drawHierarchyNode(r);
     ImGui::EndChild();
-
     ImGui::End();
 }
 
 void EditorWindows::drawHierarchyNode(GameObject* go) {
     using namespace ImGui;
 
+    PushID((void*)((uintptr_t)go ^ 0xABCD));
+    ImVec2 avail = GetContentRegionAvail();
+    InvisibleButton("##drop-above", ImVec2(avail.x, 3.0f));
+    if (BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = AcceptDragDropPayload("GO_PTR")) {
+            GameObject* dragged = *(GameObject* const*)payload->Data;
+            if (dragged && dragged != go) {
+                if (go->parent && dragged->parent == go->parent) {
+                    int idx = go->indexInParent();
+                    reorderSibling(dragged, go->parent, idx);
+                }
+                else if (!go->parent && !dragged->parent) {
+                    int newIndex = 0;
+                    if (scene_) {
+                        std::vector<GameObject*> roots;
+                        for (auto& sp : *scene_) if (sp->parent == nullptr) roots.push_back(sp.get());
+                        for (int i = 0; i < (int)roots.size(); ++i) if (roots[i] == go) { newIndex = i; break; }
+                    }
+                    reorderRoot(dragged, newIndex);
+                }
+                auto sp = findShared(dragged);
+                if (sp) setSelection(sp);
+            }
+        }
+        EndDragDropTarget();
+    }
+    PopID();
+
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
         | ImGuiTreeNodeFlags_OpenOnDoubleClick
         | ImGuiTreeNodeFlags_SpanFullWidth;
-
-    if (go->children.empty())
-        flags |= ImGuiTreeNodeFlags_Leaf;
-
+    if (go->children.empty()) flags |= ImGuiTreeNodeFlags_Leaf;
     bool isOpen = openNodes_.count(go) > 0;
-    ImGui::SetNextItemOpen(isOpen, ImGuiCond_Always);
+    SetNextItemOpen(isOpen, ImGuiCond_Always);
+    bool open = TreeNodeEx((void*)go, flags, "%s", go->name.c_str());
 
-    bool open = ImGui::TreeNodeEx((void*)go, flags, "%s", go->name.c_str());
-
-    if (ImGui::BeginPopupContextItem()) {
-        if (ImGui::MenuItem("Create Empty")) {
+    if (BeginPopupContextItem()) {
+        if (MenuItem("Create Empty")) {
             auto child = std::make_shared<GameObject>("Empty");
-            scene_->push_back(child);
+            if (scene_) scene_->push_back(child);
             go->addChild(child.get());
             openNodes_.insert(go);
             setSelection(child);
             pendingFocus_ = child.get();
         }
-        ImGui::EndPopup();
+        EndPopup();
     }
 
-    if (ImGui::IsItemClicked()) {
-        if (selected_ && *selected_) (*selected_)->isSelected = false;
-        std::shared_ptr<GameObject> sp;
+    if (IsItemClicked()) {
         if (scene_) {
-            for (auto& it : *scene_) if (it.get() == go) { sp = it; break; }
+            auto sp = findShared(go);
+            if (sp) setSelection(sp);
         }
-        if (sp) setSelection(sp);
     }
 
-    if (open) openNodes_.insert(go);
-    else      openNodes_.erase(go);
+    if (BeginDragDropSource()) {
+        SetDragDropPayload("GO_PTR", &go, sizeof(GameObject*));
+        TextUnformatted(go->name.c_str());
+        EndDragDropSource();
+    }
+
+    if (BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = AcceptDragDropPayload("GO_PTR")) {
+            GameObject* dragged = *(GameObject* const*)payload->Data;
+            if (dragged && dragged != go && !go->isDescendantOf(dragged)) {
+                reparent(dragged, go);
+                openNodes_.insert(go);
+                auto sp = findShared(dragged);
+                if (sp) setSelection(sp);
+            }
+        }
+        EndDragDropTarget();
+    }
+
+    if (open) openNodes_.insert(go); else openNodes_.erase(go);
+
+    if (open) {
+        for (auto* c : go->children) {
+            drawHierarchyNode(c);
+        }
+        TreePop();
+    }
+
+    PushID((void*)((uintptr_t)go ^ 0xBCDE));
+    InvisibleButton("##drop-below", ImVec2(avail.x, 3.0f));
+    if (BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = AcceptDragDropPayload("GO_PTR")) {
+            GameObject* dragged = *(GameObject* const*)payload->Data;
+            if (dragged && dragged != go) {
+                if (go->parent && dragged->parent == go->parent) {
+                    int idx = go->indexInParent();
+                    reorderSibling(dragged, go->parent, idx + 1);
+                }
+                else if (!go->parent && !dragged->parent) {
+                    int newIndex = 0;
+                    if (scene_) {
+                        std::vector<GameObject*> roots;
+                        for (auto& sp : *scene_) if (sp->parent == nullptr) roots.push_back(sp.get());
+                        for (int i = 0; i < (int)roots.size(); ++i) if (roots[i] == go) { newIndex = i + 1; break; }
+                    }
+                    reorderRoot(dragged, newIndex);
+                }
+                auto sp = findShared(dragged);
+                if (sp) setSelection(sp);
+            }
+        }
+        EndDragDropTarget();
+    }
+    PopID();
 
     if (pendingFocus_ == go) {
         ImGui::SetScrollHereY(0.25f);
         pendingFocus_ = nullptr;
-    }
-
-    if (open) {
-        for (auto* c : go->children) drawHierarchyNode(c);
-        ImGui::TreePop();
     }
 }
 
@@ -393,10 +490,119 @@ void EditorWindows::loadPrimitiveFromAssets(const std::string& name) {
 
 
 
-
+/*-------------------------------------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------------------------*/
 void EditorWindows::setSelection(const std::shared_ptr<GameObject>& go) {
     if (!selected_) return;
     if (*selected_) (*selected_)->isSelected = false;
     *selected_ = go;
     if (*selected_) (*selected_)->isSelected = true;
+}
+
+void EditorWindows::collectPostorder(GameObject* root, std::vector<GameObject*>& out) {
+    if (!root) return;
+    for (auto* c : root->children) collectPostorder(c, out);
+    out.push_back(root);
+}
+
+std::shared_ptr<GameObject> EditorWindows::findShared(GameObject* raw) {
+    if (!scene_ || !raw) return {};
+    for (auto& sp : *scene_) if (sp.get() == raw) return sp;
+    return {};
+}
+
+void EditorWindows::removeFromScene(GameObject* raw) {
+    if (!scene_ || !raw) return;
+    auto& v = *scene_;
+    for (auto it = v.begin(); it != v.end(); ++it) {
+        if (it->get() == raw) { v.erase(it); break; }
+    }
+}
+
+void EditorWindows::deleteSelectedRecursive() {
+    if (!selected_ || !(*selected_)) return;
+    GameObject* S = selected_->get();
+    *selected_ = nullptr;
+
+    std::vector<GameObject*> post;
+    collectPostorder(S, post);
+
+    for (auto* n : post) {
+        if (n->parent) n->parent->removeChild(n);
+    }
+    for (auto* n : post) {
+        openNodes_.erase(n);
+        removeFromScene(n);
+    }
+    pendingDelete_ = nullptr;
+}
+
+void EditorWindows::reparent(GameObject* dragged, GameObject* target) {
+    if (!dragged || dragged == target) return;
+    if (target && (target == dragged || target->isDescendantOf(dragged))) return;
+
+    mat4 M_old(1.0);
+    if (preserve_world_) M_old = computeWorldMatrix(dragged);
+
+    if (dragged->parent) dragged->parent->removeChild(dragged);
+
+    if (target) target->addChild(dragged);
+    else dragged->parent = nullptr;
+
+    if (preserve_world_) {
+        setLocalFromWorld(dragged, M_old, target);
+    }
+}
+
+void EditorWindows::reorderSibling(GameObject* node, GameObject* parent, int newIndex) {
+    if (!node || !parent) return;
+    auto& v = parent->children;
+    int cur = node->indexInParent();
+    if (cur < 0) return;
+    if (newIndex > (int)v.size()) newIndex = (int)v.size();
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex == cur || newIndex == cur + 1) return;
+    auto it = std::find(v.begin(), v.end(), node);
+    if (it == v.end()) return;
+    v.erase(it);
+    if (newIndex > cur) newIndex -= 1;
+    v.insert(v.begin() + newIndex, node);
+}
+
+void EditorWindows::reorderRoot(GameObject* node, int newIndex) {
+    if (!scene_ || !node || node->parent) return;
+    std::vector<int> rootSceneIdx;
+    std::vector<std::shared_ptr<GameObject>> rootSPs;
+    for (int i = 0; i < (int)scene_->size(); ++i) {
+        if ((*scene_)[i]->parent == nullptr) {
+            rootSceneIdx.push_back(i);
+            rootSPs.push_back((*scene_)[i]);
+        }
+    }
+    int curRootIdx = -1;
+    for (int i = 0; i < (int)rootSPs.size(); ++i) if (rootSPs[i].get() == node) { curRootIdx = i; break; }
+    if (curRootIdx < 0) return;
+
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex > (int)rootSPs.size()) newIndex = (int)rootSPs.size();
+    auto spNode = rootSPs[curRootIdx];
+    int sceneIdx = rootSceneIdx[curRootIdx];
+    (*scene_).erase((*scene_).begin() + sceneIdx);
+
+    rootSceneIdx.clear(); rootSPs.clear();
+    for (int i = 0; i < (int)scene_->size(); ++i) {
+        if ((*scene_)[i]->parent == nullptr) {
+            rootSceneIdx.push_back(i);
+            rootSPs.push_back((*scene_)[i]);
+        }
+    }
+    int destSceneIdx;
+    if (newIndex >= (int)rootSPs.size()) {
+        destSceneIdx = rootSceneIdx.empty() ? (int)scene_->size() : (rootSceneIdx.back() + 1);
+    }
+    else {
+        destSceneIdx = rootSceneIdx[newIndex];
+    }
+    (*scene_).insert((*scene_).begin() + destSceneIdx, spNode);
 }
