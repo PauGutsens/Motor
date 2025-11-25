@@ -182,7 +182,7 @@ static void handle_input() {
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL3_ProcessEvent(&event);
         ImGuiIO& io = ImGui::GetIO();
-		if (io.WantCaptureMouse || io.WantCaptureKeyboard) break;
+        if (io.WantCaptureMouse || io.WantCaptureKeyboard) break;
         switch (event.type) {
         case SDL_EVENT_QUIT:
             running = false;
@@ -291,12 +291,13 @@ int main(int argc, char* argv[]) {
     glContext = SDL_GL_CreateContext(window);
     editor.init(window, glContext);
     editor.setScene(&gameObjects, &selectedGameObject);
+    editor.setMainCamera(&camera);  // Pasar cámara principal al editor
     if (!glContext) {
         cout << "OpenGL context could not be created!" << endl;
         return EXIT_FAILURE;
     }
     init_opengl();
-    camera.transform.pos() = vec3(0, 5, 10); 
+    camera.transform.pos() = vec3(0, 5, 10);
     //camera.orbitTarget = vec3(0, 0, 0);
     updateProjection(screenWidth, screenHeight);
     loadBakerHouse();

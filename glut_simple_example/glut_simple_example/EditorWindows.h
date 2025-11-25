@@ -9,6 +9,8 @@
 #include "Logger.h"
 #include <SDL3/SDL.h>
 
+class Camera; // Forward declaration
+
 class EditorWindows {
 public:
     void init(SDL_Window* window, SDL_GLContext gl);
@@ -16,6 +18,7 @@ public:
     void render();
     void setScene(std::vector<std::shared_ptr<GameObject>>* scene,
         std::shared_ptr<GameObject>* selected);
+    void setMainCamera(Camera* cam); // Para recibir puntero a la cámara principal
     bool wantsQuit() const { return wants_quit_; }
 
 private:
@@ -34,10 +37,11 @@ private:
     std::unordered_map<GameObject*, unsigned int> prev_tex_;
     std::vector<std::shared_ptr<GameObject>>* scene_ = nullptr;
     std::shared_ptr<GameObject>* selected_ = nullptr;
+    Camera* main_camera_ = nullptr; // Puntero a cámara principal
     std::unordered_set<GameObject*> openNodes_;
     GameObject* pendingFocus_ = nullptr;
     bool preserve_world_ = true;
-    GameObject* pendingDelete_ = nullptr; 
+    GameObject* pendingDelete_ = nullptr;
 
 
     void drawMainMenu();

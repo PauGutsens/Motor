@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include "ModelLoader.h"
+#include "Camera.h"
 
 using std::string;
 namespace fs = std::filesystem;
@@ -37,10 +38,15 @@ void EditorWindows::shutdown() {
     ImGui::DestroyContext();
 }
 
+
 void EditorWindows::setScene(std::vector<std::shared_ptr<GameObject>>* scene,
     std::shared_ptr<GameObject>* selected) {
     scene_ = scene;
     selected_ = selected;
+}
+
+void EditorWindows::setMainCamera(Camera* cam) {
+    main_camera_ = cam;
 }
 
 void EditorWindows::render() {
@@ -377,84 +383,153 @@ void EditorWindows::ensureChecker() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
+
 void EditorWindows::drawInspector() {
     ImGui::SetNextWindowSize(ImVec2(360, 520), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Inspector", &show_inspector_)) { ImGui::End(); return; }
-    if (!selected_ || !(*selected_)) { ImGui::TextDisabled("No selection."); ImGui::End(); return; }
-    auto go = *selected_;
-    ImGui::Text("Name: %s", go->name.c_str());
-    ImGui::Separator();
-    auto& T = go->transform;
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-        auto pos = T.pos();
-        float p[3] = { (float)pos.x, (float)pos.y, (float)pos.z };
-        if (ImGui::DragFloat3("Position", p, 0.1f)) T.setPosition({ p[0], p[1], p[2] });
-        ImGui::SameLine(); if (ImGui::Button("Reset##pos")) T.setPosition({ 0,0,0 });
 
-        static float rot[3] = { 0,0,0 };
-        static float last[3] = { 0,0,0 };
-        if (ImGui::DragFloat3("Rotation", rot, 0.2f)) {
-            float d[3] = { rot[0] - last[0], rot[1] - last[1], rot[2] - last[2] };
-            T.rotateEulerDeltaDeg({ d[0], d[1], d[2] });
-            memcpy(last, rot, sizeof(rot));
+    // Sección GameObject (solo si hay selección)
+    if (selected_ && *selected_) {
+        auto go = *selected_;
+        ImGui::Text("Name: %s", go->name.c_str());
+        ImGui::Separator();
+        auto& T = go->transform;
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+            auto pos = T.pos();
+            float p[3] = { (float)pos.x, (float)pos.y, (float)pos.z };
+            if (ImGui::DragFloat3("Position", p, 0.1f)) T.setPosition({ p[0], p[1], p[2] });
+            ImGui::SameLine(); if (ImGui::Button("Reset##pos")) T.setPosition({ 0,0,0 });
+
+            static float rot[3] = { 0,0,0 };
+            static float last[3] = { 0,0,0 };
+            if (ImGui::DragFloat3("Rotation", rot, 0.2f)) {
+                float d[3] = { rot[0] - last[0], rot[1] - last[1], rot[2] - last[2] };
+                T.rotateEulerDeltaDeg({ d[0], d[1], d[2] });
+                memcpy(last, rot, sizeof(rot));
+            }
+            ImGui::SameLine(); if (ImGui::Button("Reset##rot")) { T.resetRotation(); memset(rot, 0, sizeof(rot)); memset(last, 0, sizeof(last)); }
+            auto sc = T.getScale();
+            float s[3] = { (float)sc.x, (float)sc.y, (float)sc.z };
+            if (ImGui::DragFloat3("Scale", s, 0.05f, 0.001f, 1000.0f)) T.setScale({ s[0], s[1], s[2] });
+            ImGui::SameLine(); if (ImGui::Button("Reset##scale")) T.resetScale();
+            auto L = T.left(), U = T.up(), F = T.fwd();
         }
-        ImGui::SameLine(); if (ImGui::Button("Reset##rot")) { T.resetRotation(); memset(rot, 0, sizeof(rot)); memset(last, 0, sizeof(last)); }
-        auto sc = T.getScale();
-        float s[3] = { (float)sc.x, (float)sc.y, (float)sc.z };
-        if (ImGui::DragFloat3("Scale", s, 0.05f, 0.001f, 1000.0f)) T.setScale({ s[0], s[1], s[2] });
-        ImGui::SameLine(); if (ImGui::Button("Reset##scale")) T.resetScale();
-        auto L = T.left(), U = T.up(), F = T.fwd();
-    }
-    if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (go->mesh) {
-            ImGui::Text("Vertices: %zu", go->mesh->getVertexCount());
-            ImGui::Text("Triangles: %zu", go->mesh->getTriangleCount());
+        if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (go->mesh) {
+                ImGui::Text("Vertices: %zu", go->mesh->getVertexCount());
+                ImGui::Text("Triangles: %zu", go->mesh->getTriangleCount());
+                ImGui::Separator();
+                ImGui::Checkbox("Show Vertex Normals", &go->mesh->showVertexNormals);
+                ImGui::Checkbox("Show Face Normals", &go->mesh->showFaceNormals);
+                if (go->mesh->showVertexNormals || go->mesh->showFaceNormals) {
+                    float normalLen = (float)go->mesh->normalLength;
+                    if (ImGui::SliderFloat("Normal Length", &normalLen, 0.01f, 2.0f))
+                        go->mesh->normalLength = normalLen;
+                }
+            }
+            else ImGui::TextDisabled("No mesh attached.");
+        }
+        if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen)) {
+            unsigned int texID = go->getTextureID();
+            int tw = 0, th = 0; if (texID) glTextureSize(texID, tw, th);
+            ImGui::Text("Texture ID: %u", texID);
+            ImGui::Text("Size: %dx%d", tw, th);
             ImGui::Separator();
-            ImGui::Checkbox("Show Vertex Normals", &go->mesh->showVertexNormals);
-            ImGui::Checkbox("Show Face Normals", &go->mesh->showFaceNormals);
-            if (go->mesh->showVertexNormals || go->mesh->showFaceNormals) {
-                float normalLen = (float)go->mesh->normalLength;
-                if (ImGui::SliderFloat("Normal Length", &normalLen, 0.01f, 2.0f))
-                    go->mesh->normalLength = normalLen;
+            ensureChecker();
+            ImGui::BeginDisabled(texID == checker_tex_);
+            if (ImGui::Button("Apply Checkerboard")) {
+                if (prev_tex_.find(go.get()) == prev_tex_.end())
+                    prev_tex_[go.get()] = texID;
+                go->setTexture(checker_tex_);
+                LOG_INFO("Applied checkerboard texture to " + go->name);
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            bool canRestore = prev_tex_.find(go.get()) != prev_tex_.end();
+            ImGui::BeginDisabled(!canRestore);
+            if (ImGui::Button("Restore Texture")) {
+                go->setTexture(prev_tex_[go.get()]);
+                prev_tex_.erase(go.get());
+                LOG_INFO("Restored original texture for " + go->name);
+            }
+            ImGui::EndDisabled();
+            if (texID != 0 && tw > 0 && th > 0) {
+                ImGui::Separator();
+                ImGui::Text("Preview:");
+                float previewSize = 200.0f;
+                float ar = (float)tw / (float)th;
+                ImVec2 size = ar > 1.0f ? ImVec2(previewSize, previewSize / ar) : ImVec2(previewSize * ar, previewSize);
+                ImGui::Image((ImTextureID)(intptr_t)texID, size);
             }
         }
-        else ImGui::TextDisabled("No mesh attached.");
     }
-    if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen)) {
-        unsigned int texID = go->getTextureID();
-        int tw = 0, th = 0; if (texID) glTextureSize(texID, tw, th);
-        ImGui::Text("Texture ID: %u", texID);
-        ImGui::Text("Size: %dx%d", tw, th);
-        ImGui::Separator();
-        ensureChecker();
-        ImGui::BeginDisabled(texID == checker_tex_);
-        if (ImGui::Button("Apply Checkerboard")) {
-            if (prev_tex_.find(go.get()) == prev_tex_.end())
-                prev_tex_[go.get()] = texID;
-            go->setTexture(checker_tex_);
-            LOG_INFO("Applied checkerboard texture to " + go->name);
-        }
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        bool canRestore = prev_tex_.find(go.get()) != prev_tex_.end();
-        ImGui::BeginDisabled(!canRestore);
-        if (ImGui::Button("Restore Texture")) {
-            go->setTexture(prev_tex_[go.get()]);
-            prev_tex_.erase(go.get());
-            LOG_INFO("Restored original texture for " + go->name);
-        }
-        ImGui::EndDisabled();
-        if (texID != 0 && tw > 0 && th > 0) {
+    else {
+        ImGui::TextDisabled("No GameObject selected.");
+    }
+
+    // ============================================================
+    // CAMERA SETTINGS (siempre visible al final del Inspector)
+    // ============================================================
+    ImGui::Separator();
+    ImGui::Separator();
+
+    if (ImGui::CollapsingHeader("Camera (Main Scene Camera)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (main_camera_) {
+            Camera* cam = main_camera_;
+
+            // FOV
+            const double PI = 3.14159265358979323846;
+            float fovDeg = (float)(cam->fov * 180.0 / PI);
+            if (ImGui::SliderFloat("FOV", &fovDeg, 30.0f, 120.0f)) {
+                cam->fov = (double)(fovDeg * PI / 180.0);
+            }
+
+            // Aspect Ratio
+            float aspect = (float)cam->aspect;
+            if (ImGui::DragFloat("Aspect Ratio", &aspect, 0.01f, 0.1f, 10.0f)) {
+                cam->aspect = (double)aspect;
+            }
+
+            // Near and Far planes
+            float zNear = (float)cam->zNear;
+            float zFar = (float)cam->zFar;
+            if (ImGui::DragFloat("Near Plane", &zNear, 0.01f, 0.01f, 100.0f)) {
+                cam->zNear = (double)zNear;
+            }
+            if (ImGui::DragFloat("Far Plane", &zFar, 1.0f, 1.0f, 1000.0f)) {
+                cam->zFar = (double)zFar;
+            }
+
             ImGui::Separator();
-            ImGui::Text("Preview:");
-            float previewSize = 200.0f;
-            float ar = (float)tw / (float)th;
-            ImVec2 size = ar > 1.0f ? ImVec2(previewSize, previewSize / ar) : ImVec2(previewSize * ar, previewSize);
-            ImGui::Image((ImTextureID)(intptr_t)texID, size);
+
+            // Movement settings
+            float moveSpeed = (float)cam->moveSpeed;
+            if (ImGui::DragFloat("Move Speed", &moveSpeed, 0.1f, 0.1f, 100.0f)) {
+                cam->moveSpeed = (double)moveSpeed;
+            }
+
+            float lookSens = (float)cam->lookSensitivity;
+            if (ImGui::DragFloat("Look Sensitivity", &lookSens, 0.0001f, 0.0001f, 0.1f, "%.4f")) {
+                cam->lookSensitivity = (double)lookSens;
+            }
+
+            float panSpeed = (float)cam->panSpeed;
+            if (ImGui::DragFloat("Pan Speed", &panSpeed, 0.0001f, 0.0001f, 0.1f, "%.4f")) {
+                cam->panSpeed = (double)panSpeed;
+            }
+
+            float zoomSpeed = (float)cam->zoomSpeed;
+            if (ImGui::DragFloat("Zoom Speed", &zoomSpeed, 0.1f, 0.1f, 10.0f)) {
+                cam->zoomSpeed = (double)zoomSpeed;
+            }
+        }
+        else {
+            ImGui::TextDisabled("Camera not initialized.");
         }
     }
     ImGui::End();
 }
+
 
 std::string EditorWindows::getAssetsPath() {
     auto cwd = fs::current_path();
