@@ -86,6 +86,7 @@
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AABB.h" />
     <ClInclude Include="backends\imgui\imgui_impl_opengl3.h" />
     <ClInclude Include="backends\imgui\imgui_impl_sdl3.h" />
     <ClInclude Include="Camera.h" />

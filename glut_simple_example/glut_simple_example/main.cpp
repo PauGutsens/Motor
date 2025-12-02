@@ -15,6 +15,7 @@
 #include "Logger.h"
 #include "backends/imgui/imgui_impl_sdl3.h"
 #include <filesystem>
+#include "AABB.h"
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -159,6 +160,30 @@ static void draw_floorGrid(int size, double step) {
     glEnd();
 }
 
+static void drawAABB(const AABB& box, const glm::u8vec3& color) {
+    glDisable(GL_LIGHTING);
+    glColor3ub(color.r, color.g, color.b);
+    glLineWidth(2.0f);
+    vec3 min = box.min;
+    vec3 max = box.max;
+    glBegin(GL_LINES);
+    glVertex3d(min.x, min.y, min.z); glVertex3d(max.x, min.y, min.z);
+    glVertex3d(max.x, min.y, min.z); glVertex3d(max.x, min.y, max.z);
+    glVertex3d(max.x, min.y, max.z); glVertex3d(min.x, min.y, max.z);
+    glVertex3d(min.x, min.y, max.z); glVertex3d(min.x, min.y, min.z);
+    glVertex3d(min.x, max.y, min.z); glVertex3d(max.x, max.y, min.z);
+    glVertex3d(max.x, max.y, min.z); glVertex3d(max.x, max.y, max.z);
+    glVertex3d(max.x, max.y, max.z); glVertex3d(min.x, max.y, max.z);
+    glVertex3d(min.x, max.y, max.z); glVertex3d(min.x, max.y, min.z);
+    glVertex3d(min.x, min.y, min.z); glVertex3d(min.x, max.y, min.z);
+    glVertex3d(max.x, min.y, min.z); glVertex3d(max.x, max.y, min.z);
+    glVertex3d(max.x, min.y, max.z); glVertex3d(max.x, max.y, max.z);
+    glVertex3d(min.x, min.y, max.z); glVertex3d(min.x, max.y, max.z);
+    glEnd();
+    glLineWidth(1.0f);
+    glEnable(GL_LIGHTING);
+}
+
 static void updateProjection(int width, int height) {
     double targetAspect = 16.0 / 9.0;
     int viewportWidth = width, viewportHeight = height, viewportX = 0, viewportY = 0;
@@ -175,6 +200,51 @@ static void updateProjection(int width, int height) {
     camera.aspect = targetAspect;
     glMatrixMode(GL_PROJECTION);
     glLoadMatrixd(&camera.projection()[0][0]);
+}
+
+static Ray getRayFromMouse(int mouseX, int mouseY, const Camera& cam, int screenWidth, int screenHeight) {
+    // Convertir coordenadas de pantalla a NDC (Normalized Device Coordinates)
+    // En OpenGL, Y=0 está abajo, pero en ventana Y=0 está arriba
+    double x = (2.0 * mouseX) / screenWidth - 1.0;
+    double y = 1.0 - (2.0 * mouseY) / screenHeight; // Invertir Y
+
+    // NDC del near plane
+    vec4 rayClip(x, y, -1.0, 1.0);
+
+    // Convertir a eye space
+    mat4 invProj = glm::inverse(cam.projection());
+    vec4 rayEye = invProj * rayClip;
+    rayEye = vec4(rayEye.x, rayEye.y, -1.0, 0.0); // Forward direction
+
+    // Convertir a world space
+    mat4 invView = glm::inverse(cam.view());
+    vec4 rayWorld = invView * rayEye;
+    vec3 direction = glm::normalize(vec3(rayWorld));
+
+    return Ray(cam.transform.pos(), direction);
+}
+
+static shared_ptr<GameObject> selectWithRaycast(int mouseX, int mouseY) {
+    if (gameObjects.empty()) return nullptr;
+    int screenWidth, screenHeight;
+    SDL_GetWindowSize(window, &screenWidth, &screenHeight);
+    Ray ray = getRayFromMouse(mouseX, mouseY, camera, screenWidth, screenHeight);
+    shared_ptr<GameObject> closest = nullptr;
+    double closestDist = std::numeric_limits<double>::max();
+
+    for (auto& go : gameObjects) {
+        if (!go->mesh) continue;
+        mat4 worldMatrix = computeWorldMatrix(go.get());
+        AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
+        double t;
+        if (ray.intersectsAABB(worldAABB, t)) {
+            if (t < closestDist) {
+                closestDist = t;
+                closest = go;
+            }
+        }
+    }
+    return closest;
 }
 
 static void handle_input() {
@@ -206,13 +276,26 @@ static void handle_input() {
             break;
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
             camera.onMouseButton(event.button.button, 1, event.button.x, event.button.y);
-            if (event.button.button == SDL_BUTTON_LEFT && !gameObjects.empty()) {
-                if (selectedGameObject) selectedGameObject->isSelected = false;
-                static size_t selectionIndex = 0;
-                selectionIndex = (selectionIndex + 1) % gameObjects.size();
-                selectedGameObject = gameObjects[selectionIndex];
-                selectedGameObject->isSelected = true;
-                cout << "Selected: " << selectedGameObject->name << endl;
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                ImGuiIO& io = ImGui::GetIO();
+                if (!io.WantCaptureMouse) {
+                    auto hit = selectWithRaycast(event.button.x, event.button.y);
+                    if (hit) {
+                        if (selectedGameObject) {
+                            selectedGameObject->isSelected = false;
+                        }
+                        selectedGameObject = hit;
+                        selectedGameObject->isSelected = true;
+                        cout << "Selected (Raycast): " << selectedGameObject->name << endl;
+                    }
+                    else {
+                        if (selectedGameObject) {
+                            selectedGameObject->isSelected = false;
+                            selectedGameObject = nullptr;
+                            cout << "Deselected" << endl;
+                        }
+                    }
+                }
             }
             break;
         case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -249,6 +332,19 @@ static void render() {
     draw_floorGrid(16, 0.25);
     glColor3f(1.0f, 1.0f, 1.0f);
     for (const auto& go : gameObjects) go->draw();
+    static bool showAABBs = true; 
+    if (showAABBs) {
+        for (const auto& go : gameObjects) {
+            if (go->mesh && go->mesh->localAABB.isValid()) {
+                mat4 worldMatrix = computeWorldMatrix(go.get());
+                AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
+                glm::u8vec3 color = go->isSelected ? 
+                    glm::u8vec3(255, 255, 0) :  
+                    glm::u8vec3(0, 255, 0);     
+                    drawAABB(worldAABB, color);
+            }
+        }
+    }
     editor.render();
     SDL_GL_SwapWindow(window);
 }

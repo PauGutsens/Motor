@@ -41,6 +41,7 @@ void Mesh::setupMesh() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     if (!indices.empty()) glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     _isSetup = true;
+    computeAABB();
 }
 
 void Mesh::draw() const {
@@ -120,4 +121,12 @@ void Mesh::cleanup() {
     if (EBO) { glDeleteBuffers(1, &EBO); EBO = 0; }
     if (VBO) { glDeleteBuffers(1, &VBO); VBO = 0; }
     if (VAO) { glDeleteVertexArrays(1, &VAO); VAO = 0; }
+}
+
+void Mesh::computeAABB() {
+    localAABB = AABB();
+
+    for (const auto& vertex : vertices) {
+        localAABB.expand(vertex.position);
+    }
 }

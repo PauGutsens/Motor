@@ -1,5 +1,6 @@
 #pragma once
 #include "types.h"
+#include "AABB.h"
 #include <vector>
 #include <string>
 #include <GL/glew.h>
@@ -25,6 +26,8 @@ public:
     bool showFaceNormals = false;
     double normalLength = 0.2;
 
+    AABB localAABB;
+
     Mesh() = default;
     Mesh(const std::vector<Vertex>& verts, const std::vector<unsigned int>& inds);
     ~Mesh();
@@ -35,6 +38,12 @@ public:
     unsigned int getTexture() const { return textureID; }
     size_t getVertexCount() const { return vertices.size(); }
     size_t getTriangleCount() const { return indices.empty() ? vertices.size() / 3 : indices.size() / 3; }
+
+    void computeAABB();
+
+    AABB getWorldAABB(const mat4& worldMatrix) const {
+        return localAABB.transform(worldMatrix);
+    }
 
 private:
     bool _isSetup = false;
