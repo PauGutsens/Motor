@@ -16,6 +16,7 @@
 #include "backends/imgui/imgui_impl_sdl3.h"
 #include <filesystem>
 #include "AABB.h"
+#include "Frustum.h"
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -184,6 +185,63 @@ static void drawAABB(const AABB& box, const glm::u8vec3& color) {
     glEnable(GL_LIGHTING);
 }
 
+static void drawFrustum(const Frustum& frustum, const mat4& invProjView, const glm::u8vec3& color) {
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+    glColor3ub(color.r, color.g, color.b);
+    glLineWidth(2.0f);
+
+    // Obtener las 8 esquinas del frustum
+    vec3 corners[8];
+    frustum.getCorners(corners, invProjView);
+
+    glBegin(GL_LINES);
+
+    // Near plane
+    glVertex3d(corners[0].x, corners[0].y, corners[0].z);
+    glVertex3d(corners[1].x, corners[1].y, corners[1].z);
+
+    glVertex3d(corners[1].x, corners[1].y, corners[1].z);
+    glVertex3d(corners[3].x, corners[3].y, corners[3].z);
+
+    glVertex3d(corners[3].x, corners[3].y, corners[3].z);
+    glVertex3d(corners[2].x, corners[2].y, corners[2].z);
+
+    glVertex3d(corners[2].x, corners[2].y, corners[2].z);
+    glVertex3d(corners[0].x, corners[0].y, corners[0].z);
+
+    // Far plane (4 líneas)
+    glVertex3d(corners[4].x, corners[4].y, corners[4].z);
+    glVertex3d(corners[5].x, corners[5].y, corners[5].z);
+
+    glVertex3d(corners[5].x, corners[5].y, corners[5].z);
+    glVertex3d(corners[7].x, corners[7].y, corners[7].z);
+
+    glVertex3d(corners[7].x, corners[7].y, corners[7].z);
+    glVertex3d(corners[6].x, corners[6].y, corners[6].z);
+
+    glVertex3d(corners[6].x, corners[6].y, corners[6].z);
+    glVertex3d(corners[4].x, corners[4].y, corners[4].z);
+
+    // Connecting lines
+    glVertex3d(corners[0].x, corners[0].y, corners[0].z);
+    glVertex3d(corners[4].x, corners[4].y, corners[4].z);
+
+    glVertex3d(corners[1].x, corners[1].y, corners[1].z);
+    glVertex3d(corners[5].x, corners[5].y, corners[5].z);
+
+    glVertex3d(corners[2].x, corners[2].y, corners[2].z);
+    glVertex3d(corners[6].x, corners[6].y, corners[6].z);
+
+    glVertex3d(corners[3].x, corners[3].y, corners[3].z);
+    glVertex3d(corners[7].x, corners[7].y, corners[7].z);
+
+    glEnd();
+    glLineWidth(1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
+}
+
 static void updateProjection(int width, int height) {
     double targetAspect = 16.0 / 9.0;
     int viewportWidth = width, viewportHeight = height, viewportX = 0, viewportY = 0;
@@ -326,26 +384,82 @@ static void render() {
     double deltaTime = chrono::duration<double>(currentTime - lastFrameTime).count();
     lastFrameTime = currentTime;
     camera.update(deltaTime);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
     glLoadMatrixd(&camera.view()[0][0]);
     draw_floorGrid(16, 0.25);
+    mat4 projView = camera.projection() * camera.view();
+    Frustum frustum;
+    frustum.extractFromCamera(projView);
+    int totalObjects = 0;
+    int culledObjects = 0;
+    int renderedObjects = 0;
     glColor3f(1.0f, 1.0f, 1.0f);
-    for (const auto& go : gameObjects) go->draw();
-    static bool showAABBs = true; 
-    if (showAABBs) {
+    for (const auto& go : gameObjects) {
+        totalObjects++;
+
+        bool shouldRender = true;
+
+        // Aplicar frustum culling si está activado
+        if (editor.isFrustumCullingEnabled() && go->mesh) {
+            mat4 worldMatrix = computeWorldMatrix(go.get());
+            AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
+            if (worldAABB.isValid()) {
+                shouldRender = frustum.containsAABB(worldAABB);
+                if (!shouldRender) {
+                    culledObjects++;
+                }
+            }
+        }
+        if (shouldRender) {
+            go->draw();
+            renderedObjects++;
+        }
+    }
+
+    // Dibujar AABBs si está activado
+    if (editor.shouldShowAABBs()) {
         for (const auto& go : gameObjects) {
             if (go->mesh && go->mesh->localAABB.isValid()) {
                 mat4 worldMatrix = computeWorldMatrix(go.get());
                 AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
-                glm::u8vec3 color = go->isSelected ? 
-                    glm::u8vec3(255, 255, 0) :  
-                    glm::u8vec3(0, 255, 0);     
-                    drawAABB(worldAABB, color);
+                glm::u8vec3 color;
+                float lineWidth;
+
+                if (go->isSelected) {
+                    color = glm::u8vec3(255, 255, 0); 
+                    lineWidth = 3.0f;
+                }
+                else {
+                    // Verificar si está dentro del frustum
+                    bool inFrustum = frustum.containsAABB(worldAABB);
+                    if (inFrustum) {
+                        color = glm::u8vec3(0, 255, 0);
+                    }
+                    else {
+                        color = glm::u8vec3(255, 0, 0);
+                    }
+                    lineWidth = 2.0f;
+                }
+                drawAABB(worldAABB, color);
             }
         }
     }
+    // Dibujar frustum si está activado
+    if (editor.shouldShowFrustum()) {
+        mat4 invProjView = glm::inverse(projView);
+        drawFrustum(frustum, invProjView, glm::u8vec3(255, 255, 255));
+    }
     editor.render();
+
+    static int frameCount = 0;
+    if (editor.isFrustumCullingEnabled() && ++frameCount >= 60) {
+        frameCount = 0;
+         cout << "Culling Stats - Total: " << totalObjects 
+              << " Rendered: " << renderedObjects 
+              << " Culled: " << culledObjects << endl;
+    }
     SDL_GL_SwapWindow(window);
 }
 

@@ -91,6 +91,7 @@
     <ClInclude Include="backends\imgui\imgui_impl_sdl3.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="EditorWindows.h" />
+    <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="Mesh.h" />

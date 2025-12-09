@@ -143,7 +143,7 @@ void EditorWindows::drawConsole() {
 }
 
 void EditorWindows::drawConfig() {
-    ImGui::SetNextWindowSize(ImVec2(420, 380), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(420, 500), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Config", &show_config_)) { ImGui::End(); return; }
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
     ImGui::PlotLines("Framerate", fps_history_, kFpsHistory, fps_index_, nullptr, 0.0f, 200.0f, ImVec2(-1, 80));
@@ -154,9 +154,29 @@ void EditorWindows::drawConfig() {
     ImGui::Separator();
     ImGui::Text("SDL CPU cores : %d", SDL_GetNumLogicalCPUCores());
     ImGui::Text("SDL SystemRAM : %d MB", SDL_GetSystemRAM());
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Debug Visualization");
+    ImGui::Separator();
+    if (ImGui::Checkbox("Show AABBs", &show_aabbs_)) {
+        LOG_INFO(show_aabbs_ ? "AABB visualization enabled" : "AABB visualization disabled");
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Show Axis-Aligned Bounding Boxes around objects");
+    }
+    if (ImGui::Checkbox("Enable Frustum Culling", &enable_frustum_culling_)) {
+        LOG_INFO(enable_frustum_culling_ ? "Frustum culling enabled" : "Frustum culling disabled");
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Skip rendering objects outside camera view");
+    }
+    if (ImGui::Checkbox("Show Frustum", &show_frustum_)) {
+        LOG_INFO(show_frustum_ ? "Frustum visualization enabled" : "Frustum visualization disabled");
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Show camera frustum wireframe");
+    }
     ImGui::End();
 }
-
 void EditorWindows::drawHierarchy() {
     ImGui::SetNextWindowSize(ImVec2(260, 420), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Hierarchy", &show_hierarchy_)) { ImGui::End(); return; }

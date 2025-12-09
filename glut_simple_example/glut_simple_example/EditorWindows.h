@@ -20,6 +20,9 @@ public:
         std::shared_ptr<GameObject>* selected);
     void setMainCamera(Camera* cam); // Para recibir puntero a la cámara principal
     bool wantsQuit() const { return wants_quit_; }
+    bool shouldShowAABBs() const { return show_aabbs_; }
+    bool isFrustumCullingEnabled() const { return enable_frustum_culling_; } 
+    bool shouldShowFrustum() const { return show_frustum_; }
 
 private:
     bool show_console_ = true;
@@ -28,6 +31,9 @@ private:
     bool show_inspector_ = true;
     bool show_about_ = false;
     bool wants_quit_ = false;
+    bool show_aabbs_ = false;
+    bool enable_frustum_culling_ = true;  
+    bool show_frustum_ = false;
 
     static constexpr int kFpsHistory = 300;
     float fps_history_[kFpsHistory] = { 0 };
@@ -43,6 +49,7 @@ private:
     bool preserve_world_ = true;
     GameObject* pendingDelete_ = nullptr;
 
+    
 
     void drawMainMenu();
     void drawConsole();
