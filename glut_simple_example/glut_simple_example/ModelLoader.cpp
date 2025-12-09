@@ -1,6 +1,7 @@
 #include "ModelLoader.h"
 #include "TextureLoader.h"
 #include "Mesh.h"
+#include "MeshImporter.h" // Incluimos nuestro importer
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -42,20 +43,23 @@ namespace {
             }
         }
     }
-
 }
 
 std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* scenePtr) {
     aiMesh* mesh = static_cast<aiMesh*>(meshPtr);
     if (!mesh) return nullptr;
+
+    // Extraer datos de Assimp (FBX)
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
+
     vertices.reserve(mesh->mNumVertices);
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
         Vertex v{};
         v.position.x = mesh->mVertices[i].x;
         v.position.y = mesh->mVertices[i].y;
         v.position.z = mesh->mVertices[i].z;
+
         if (mesh->HasNormals()) {
             v.normal.x = mesh->mNormals[i].x;
             v.normal.y = mesh->mNormals[i].y;
@@ -64,6 +68,7 @@ std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* sceneP
         else {
             v.normal = vec3(0.0, 0.0, 1.0);
         }
+
         if (mesh->mTextureCoords[0]) {
             v.texCoord.x = mesh->mTextureCoords[0][i].x;
             v.texCoord.y = mesh->mTextureCoords[0][i].y;
@@ -73,12 +78,35 @@ std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* sceneP
         }
         vertices.push_back(v);
     }
+
     for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
         const aiFace& face = mesh->mFaces[i];
         for (unsigned int j = 0; j < face.mNumIndices; ++j) {
             indices.push_back(face.mIndices[j]);
         }
     }
+
+    // Guardar en formato propio (Library)
+
+    // Generar nombre unico o usar el del mesh
+    std::string meshName = (mesh->mName.length > 0) ? mesh->mName.C_Str() : "mesh";
+    
+    std::string libraryPath = "Library/" + meshName + ".myMesh";
+
+    // Guardar el archivo binario en disco
+    MeshImporter::Save(libraryPath.c_str(), vertices, indices);
+
+    // Cargar desde formato propio (Runtime)
+
+    // Cargar usando nuestro sistema (para probar que funciona)
+    auto loadedMesh = MeshImporter::Load(libraryPath.c_str());
+
+    // Si carga bien devolvemos ese, si no usamos el de Assimp como backup
+    if (loadedMesh) {
+        return loadedMesh;
+    }
+
+    // Backup por si falla la carga
     auto result = std::make_shared<Mesh>(vertices, indices);
     result->setupMesh();
     return result;
@@ -107,7 +135,10 @@ std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& pat
     meshes.reserve(scene->mNumMeshes);
     for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
         aiMesh* am = scene->mMeshes[i];
+
+        // Procesar mesh (ahora guarda y carga de library)
         auto m = ModelLoader::processMesh(am, scene);
+
         if (!m) continue;
         if (am->mMaterialIndex < scene->mNumMaterials) {
             const aiMaterial* mat = scene->mMaterials[am->mMaterialIndex];
