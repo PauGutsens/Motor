@@ -1,0 +1,11 @@
+{
+  "name": "motor-a2",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "sdl3",
+    "glew",
+    "glm",
+    "assimp",
+    "imgui"
+  ]
+}

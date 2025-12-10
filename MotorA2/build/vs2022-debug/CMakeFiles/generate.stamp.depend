@@ -1,0 +1,61 @@
+# CMake generation dependency list for this directory.
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXInformation.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCommonLanguageInclude.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeDependentOption.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeFindDependencyMacro.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeGenericSystem.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeInitializeConfigs.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeLanguageInformation.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeRCInformation.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeSystemSpecificInformation.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeSystemSpecificInitialize.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Compiler/CMakeCommonCompilerMacros.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Compiler/MSVC-CXX.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Compiler/MSVC.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/FeatureSummary.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/FindOpenGL.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/FindPackageHandleStandardArgs.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/FindPackageMessage.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Internal/CMakeCXXLinkerInformation.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Internal/CMakeCommonLinkerInformation.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Linker/MSVC-CXX.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Linker/MSVC.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Platform/Linker/Windows-MSVC-CXX.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Platform/Linker/Windows-MSVC.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Platform/Windows-Initialize.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Platform/Windows-MSVC-CXX.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Platform/Windows-MSVC.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Platform/Windows.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/Platform/WindowsPaths.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/SelectLibraryConfigurations.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/CMakeLists.txt
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/CMakeFiles/4.2.1/CMakeCXXCompiler.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/CMakeFiles/4.2.1/CMakeRCCompiler.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/CMakeFiles/4.2.1/CMakeSystem.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/assimp/assimpConfig.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/assimp/assimpConfigVersion.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/assimp/assimpTargets-debug.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/assimp/assimpTargets-release.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/assimp/assimpTargets.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glew/CopyImportedTargetProperties.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glew/glew-config.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glew/glew-targets-debug.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glew/glew-targets-release.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glew/glew-targets.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glew/vcpkg-cmake-wrapper.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glm/glmConfig-debug.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glm/glmConfig-release.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glm/glmConfig.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/glm/glmConfigVersion.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/imgui/imgui-config.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/imgui/imgui-targets-debug.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/imgui/imgui-targets-release.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/imgui/imgui-targets.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/sdl3/SDL3Config.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/sdl3/SDL3ConfigVersion.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/sdl3/SDL3headersTargets.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/sdl3/SDL3sharedTargets-debug.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/sdl3/SDL3sharedTargets-release.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/share/sdl3/SDL3sharedTargets.cmake
+C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/vcpkg.json
+C:/Users/yunqian/vcpkg/scripts/buildsystems/vcpkg.cmake
