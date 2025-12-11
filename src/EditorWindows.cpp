@@ -7,8 +7,10 @@
 #include <filesystem>
 #include <vector>
 #include <algorithm>
+#include <cstdlib>
 #include "ModelLoader.h"
 #include "Camera.h"
+#include "AssetDatabase.h"
 
 using std::string;
 namespace fs = std::filesystem;
@@ -61,6 +63,7 @@ void EditorWindows::render() {
     if (show_config_)    drawConfig();
     if (show_hierarchy_) drawHierarchy();
     if (show_inspector_) drawInspector();
+    if (show_assets_)    drawAssets();
     if (show_about_) {
         if (ImGui::Begin("About", &show_about_)) {
             ImGui::TextUnformatted("Motor");
@@ -87,6 +90,7 @@ void EditorWindows::drawMainMenu() {
             ImGui::MenuItem("Config", nullptr, &show_config_);
             ImGui::MenuItem("Hierarchy", nullptr, &show_hierarchy_);
             ImGui::MenuItem("Inspector", nullptr, &show_inspector_);
+            ImGui::MenuItem("Assets", nullptr, &show_assets_);
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Primitives")) {
@@ -669,11 +673,11 @@ void EditorWindows::reorderRoot(GameObject* node, int newIndex) {
     if (!scene_ || !node || node->parent) return;
     std::vector<int> rootSceneIdx;
     std::vector<std::shared_ptr<GameObject>> rootSPs;
-    for (int i = 0; i < (int)scene_->size(); ++i) {
+ for (int i = 0; i < (int)scene_->size(); ++i) {
         if ((*scene_)[i]->parent == nullptr) {
-            rootSceneIdx.push_back(i);
+   rootSceneIdx.push_back(i);
             rootSPs.push_back((*scene_)[i]);
-        }
+   }
     }
     int curRootIdx = -1;
     for (int i = 0; i < (int)rootSPs.size(); ++i) if (rootSPs[i].get() == node) { curRootIdx = i; break; }
@@ -688,8 +692,8 @@ void EditorWindows::reorderRoot(GameObject* node, int newIndex) {
     rootSceneIdx.clear(); rootSPs.clear();
     for (int i = 0; i < (int)scene_->size(); ++i) {
         if ((*scene_)[i]->parent == nullptr) {
-            rootSceneIdx.push_back(i);
-            rootSPs.push_back((*scene_)[i]);
+  rootSceneIdx.push_back(i);
+       rootSPs.push_back((*scene_)[i]);
         }
     }
     int destSceneIdx;
@@ -700,4 +704,162 @@ void EditorWindows::reorderRoot(GameObject* node, int newIndex) {
         destSceneIdx = rootSceneIdx[newIndex];
     }
     (*scene_).insert((*scene_).begin() + destSceneIdx, spNode);
+}
+
+/*-------------------------------------------------------------------------------------------------------*/
+/*---------------------------------------ASSETS WINDOW------------------------------------------------*/
+/*-------------------------------------------------------------------------------------------------------*/
+
+void EditorWindows::drawAssets() {
+    ImGui::SetNextWindowSize(ImVec2(350, 500), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Assets", &show_assets_)) { ImGui::End(); return; }
+
+    // Info box
+    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Drag and drop files here to import");
+    ImGui::Separator();
+
+    // Toolbar
+    if (ImGui::Button("Refresh##assets")) {
+ if (asset_database_) {
+    asset_database_->refresh();
+            LOG_INFO("Assets refreshed from disk");
+  }
+    }
+    ImGui::SameLine();
+    
+    // Show total assets
+    int assetCount = 0;
+    if (asset_database_) {
+    assetCount = asset_database_->getAllAssets().size();
+    }
+    ImGui::Text("Assets: %d", assetCount);
+
+    ImGui::SameLine();
+    ImGui::Checkbox("Show References##assetdb", &show_asset_refs_);
+
+    ImGui::Separator();
+
+    // Asset tree
+    ImGui::BeginChild("AssetTree", ImVec2(0, 0), true);
+    
+    if (asset_database_) {
+        std::string assetsPath = asset_database_->getAssetsPath();
+        if (fs::exists(assetsPath)) {
+ ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen;
+            bool rootOpen = ImGui::TreeNodeEx("Assets", flags);
+        
+// Accept drag-drop for folder
+            if (ImGui::BeginDragDropTarget()) {
+           if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("") ) {
+   // File drop handling
+       }
+      ImGui::EndDragDropTarget();
+            }
+
+ if (rootOpen) {
+       drawAssetTree(assetsPath, 0);
+            ImGui::TreePop();
+            }
+        } else {
+    ImGui::TextDisabled("Assets folder not found");
+        }
+    } else {
+      ImGui::TextDisabled("AssetDatabase not initialized");
+    }
+
+    ImGui::EndChild();
+    ImGui::End();
+}
+
+void EditorWindows::drawAssetTree(const std::string& folderPath, int depth) {
+    if (depth > 5) return;  // Limit recursion depth
+   if (!asset_database_) return;
+
+    try {
+        for (const auto& entry : fs::directory_iterator(folderPath)) {
+            std::string name = entry.path().filename().string();
+         
+            // Skip .meta files and hidden files
+            if (name.empty() || name[0] == '.') continue;
+   if (name.size() >= 5 && name.substr(name.size() - 5) == ".meta") continue;
+
+      if (entry.is_directory()) {
+    // Folder node
+    bool isOpen = expanded_asset_folders_.count(entry.path().string()) > 0;
+   ImGui::SetNextItemOpen(isOpen);
+        
+   if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+       if (ImGui::IsItemClicked()) {
+                  // Toggle expanded state
+        std::string fullPath = entry.path().string();
+       if (isOpen) {
+           expanded_asset_folders_.erase(fullPath);
+     } else {
+ expanded_asset_folders_.insert(fullPath);
+          }
+       }
+           
+     drawAssetTree(entry.path().string(), depth + 1);
+        ImGui::TreePop();
+           }
+     } else {
+       // Asset file
+           std::string fullPath = entry.path().string();
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+                
+        // Highlight if selected
+          bool isSelected = (selected_asset_ == fullPath);
+            if (isSelected) {
+  ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+           }
+
+     ImGui::TreeNodeEx(name.c_str(), flags);
+
+     if (isSelected) {
+          ImGui::PopStyleColor();
+    }
+        
+           // Selection and interaction
+      if (ImGui::IsItemClicked()) {
+       selected_asset_ = fullPath;
+              }
+
+      // Context menu for asset
+    if (ImGui::BeginPopupContextItem()) {
+   AssetMeta* meta = asset_database_->findAssetBySourcePath(fullPath);
+  
+      if (meta) {
+      ImGui::Text("Type: %s", meta->assetType.c_str());
+        ImGui::Text("GUID: %.8s", meta->guid.c_str());
+            if (show_asset_refs_) {
+      ImGui::Text("References: %d", meta->referenceCount);
+   }
+           ImGui::Separator();
+       }
+
+      if (ImGui::MenuItem("Show in Explorer")) {
+            // Platform-specific file explorer open
+                   #ifdef _WIN32
+         system(("explorer /select,\"" + fullPath + "\"").c_str());
+      #endif
+     }
+
+        if (ImGui::MenuItem("Delete")) {
+              if (meta && meta->referenceCount > 0) {
+          LOG_WARN("Cannot delete asset with active references (" + std::to_string(meta->referenceCount) + ")");
+       } else {
+                if (asset_database_->deleteAsset(fullPath)) {
+       selected_asset_ = "";
+        }
+             }
+        }
+
+ImGui::EndPopup();
+      }
+  }
+   }
+ } catch (const std::exception& e) {
+        ImGui::TextDisabled("Error reading folder");
+   LOG_ERROR("Asset tree error: " + std::string(e.what()));
+    }
 }

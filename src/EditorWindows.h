@@ -10,6 +10,7 @@
 #include <SDL3/SDL.h>
 
 class Camera; // Forward declaration
+class AssetDatabase; // Forward declaration
 
 class EditorWindows {
 public:
@@ -24,12 +25,16 @@ public:
     bool isFrustumCullingEnabled() const { return enable_frustum_culling_; } 
     bool shouldShowFrustum() const { return show_frustum_; }
 
+    // Asset system integration
+    void setAssetDatabase(AssetDatabase* db) { asset_database_ = db; }
+
 private:
     bool show_console_ = true;
     bool show_config_ = true;
     bool show_hierarchy_ = true;
     bool show_inspector_ = true;
     bool show_about_ = false;
+    bool show_assets_ = true;
     bool wants_quit_ = false;
     bool show_aabbs_ = false;
     bool enable_frustum_culling_ = true;  
@@ -39,17 +44,22 @@ private:
     float fps_history_[kFpsHistory] = { 0 };
     int   fps_index_ = 0;
     unsigned int checker_tex_ = 0;
-    int checker_w_ = 0, checker_h_ = 0;
+  int checker_w_ = 0, checker_h_ = 0;
     std::unordered_map<GameObject*, unsigned int> prev_tex_;
     std::vector<std::shared_ptr<GameObject>>* scene_ = nullptr;
     std::shared_ptr<GameObject>* selected_ = nullptr;
     Camera* main_camera_ = nullptr; // Puntero a cámara principal
+    AssetDatabase* asset_database_ = nullptr; // Asset database reference
     std::unordered_set<GameObject*> openNodes_;
     GameObject* pendingFocus_ = nullptr;
     bool preserve_world_ = true;
     GameObject* pendingDelete_ = nullptr;
 
-    
+    // Assets window state
+    std::unordered_set<std::string> expanded_asset_folders_;
+    std::string selected_asset_;
+    std::unordered_map<std::string, std::vector<std::string>> asset_folder_contents_;
+    bool show_asset_refs_ = false;  // Show reference counts
 
     void drawMainMenu();
     void drawConsole();
@@ -57,6 +67,8 @@ private:
     void drawHierarchy();
     void drawHierarchyNode(GameObject*);
     void drawInspector();
+    void drawAssets();
+    void drawAssetTree(const std::string& folderPath, int depth);
     void ensureChecker();
     void loadPrimitiveFromAssets(const std::string& name);
     std::string getAssetsPath();

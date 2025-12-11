@@ -13,6 +13,7 @@
 #include <algorithm>
 #include "EditorWindows.h"
 #include "Logger.h"
+#include "AssetDatabase.h"
 #include <imgui_impl_sdl3.h>
 #include <filesystem>
 #include "AABB.h"
@@ -507,6 +508,13 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     init_opengl();
+    
+    // Initialize AssetDatabase
+    std::string assetsPath = getAssetsPath();
+    std::string libraryPath = fs::absolute(fs::path(assetsPath).parent_path() / "Library").string();
+    AssetDatabase::instance().initialize(assetsPath, libraryPath);
+    editor.setAssetDatabase(&AssetDatabase::instance());  // Connect to editor
+
     camera.transform.pos() = vec3(0, 5, 10);
     //camera.orbitTarget = vec3(0, 0, 0);
     updateProjection(screenWidth, screenHeight);
@@ -525,9 +533,10 @@ int main(int argc, char* argv[]) {
         SDL_Delay(1);
     }
     gameObjects.clear();
+    AssetDatabase::instance().shutdown();
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
-    editor.shutdown();
+editor.shutdown();
     SDL_Quit();
     return EXIT_SUCCESS;
 }
