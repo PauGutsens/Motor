@@ -31,7 +31,30 @@ public:
     void drawAssets();
     void drawToolbar(bool& isPlaying, bool& isPaused, bool& step); // [NEW] Logic for Play/Stop
     void ensureChecker();
-    void drawGameWindow(unsigned int texID, int w, int h); // [NEW]
+
+
+    struct ViewportBounds {
+        float x, y; // Screen position of top-left corner
+        float w, h; // Size of the viewport
+        bool isHovered;
+        bool isFocused;
+    };
+
+    // Camera Settings
+    float cameraMoveSpeed = 10.0f;
+    float cameraSensitivity = 0.1f;
+    float cameraZoomSpeed = 2.0f;
+    
+    // Game View
+    void setGameViewTexture(unsigned int texID, int w, int h) { gameTexID_ = texID; gameW_ = w; gameH_ = h; }
+    void drawGameWindow(unsigned int texID, int w, int h, bool isPlaying);
+    const ViewportBounds& getGameViewBounds() const { return gameViewBounds_; }
+
+    // Scene View (Editor)
+    void setSceneViewTexture(unsigned int texID, int w, int h) { sceneTexID_ = texID; sceneW_ = w; sceneH_ = h; }
+    void drawSceneWindow(unsigned int texID, int w, int h);
+    const ViewportBounds& getSceneViewBounds() const { return sceneViewBounds_; } // Accessor for Scene Bounds
+
 
 private:
     bool show_console_ = true;
@@ -58,7 +81,21 @@ private:
     std::unordered_set<GameObject*> openNodes_;
     GameObject* pendingFocus_ = nullptr;
     bool preserve_world_ = true;
+
+
     GameObject* pendingDelete_ = nullptr;
+    
+    // Game View State
+    unsigned int gameTexID_ = 0;
+    int gameW_ = 0;
+    int gameH_ = 0;
+    ViewportBounds gameViewBounds_; // Underscore to match cpp
+
+    // Scene View State
+    unsigned int sceneTexID_ = 0;
+    int sceneW_ = 0;
+    int sceneH_ = 0;
+    ViewportBounds sceneViewBounds_;
 
     // Assets window state
     std::unordered_set<std::string> expanded_asset_folders_;

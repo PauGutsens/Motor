@@ -33,6 +33,11 @@ void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
     ImGui::CreateContext();
     ImGui_ImplSDL3_InitForOpenGL(window, gl);
     ImGui_ImplOpenGL3_Init("#version 130");
+    
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
+    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Optional: Multi-viewport
+    
     LOG_INFO("ImGui initialized (OpenGL3 backend).");
 }
 
@@ -60,11 +65,24 @@ void EditorWindows::render(bool* isPlaying, bool* isPaused, bool* step) {
     fps_history_[fps_index_] = io.Framerate;
     fps_index_ = (fps_index_ + 1) % kFpsHistory;
     
+    // [NEW] DockSpace
+    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
+    
     drawMainMenu();
     
     // [NEW] Toolbar inside frame scope
     if (isPlaying && isPaused && step) {
         drawToolbar(*isPlaying, *isPaused, *step);
+    }
+    
+    // [NEW] Draw Game View if texture available
+    if (gameTexID_ != 0) {
+        drawGameWindow(gameTexID_, gameW_, gameH_, isPlaying ? *isPlaying : false);
+    }
+    
+    // [NEW] Draw Scene View
+    if (sceneTexID_ != 0) {
+        drawSceneWindow(sceneTexID_, sceneW_, sceneH_);
     }
 
     if (show_console_)   drawConsole();
@@ -229,6 +247,22 @@ void EditorWindows::drawConsole() {
 void EditorWindows::drawConfig() {
     ImGui::SetNextWindowSize(ImVec2(420, 500), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Config", &show_config_)) { ImGui::End(); return; }
+    
+    // [NEW] Camera Controls
+    if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Editor Camera Controls");
+        ImGui::SliderFloat("Move Speed", &cameraMoveSpeed, 1.0f, 500.0f);
+        ImGui::SliderFloat("Look Sensitivity", &cameraSensitivity, 0.01f, 5.0f);
+        ImGui::SliderFloat("Zoom Speed", &cameraZoomSpeed, 0.1f, 50.0f);
+        
+        if (ImGui::Button("Reset Camera Defaults")) {
+            cameraMoveSpeed = 20.0f;
+            cameraSensitivity = 0.1f;
+            cameraZoomSpeed = 2.0f;
+        }
+    }
+    ImGui::Separator();
+
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
     ImGui::PlotLines("Framerate", fps_history_, kFpsHistory, fps_index_, nullptr, 0.0f, 200.0f, ImVec2(-1, 80));
     ImGui::Separator();
@@ -898,16 +932,42 @@ ImGui::EndPopup();
         ImGui::TextDisabled("Error reading folder");
    LOG_ERROR("Asset tree error: " + std::string(e.what()));
     }
-void EditorWindows::drawGameWindow(unsigned int texID, int w, int h) {
+}
+void EditorWindows::drawGameWindow(unsigned int texID, int w, int h, bool isPlaying) {
     if (ImGui::Begin("Game View", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
         
-        // Simple fitting (stretch or fit?)
-        // For now, stretch to fill window
-        
-        // Note: OpenGL textures are upside down in ImGui unless flipped UVs
-        // ImGui::Image((void*)(intptr_t)texID, viewportSize, ImVec2(0, 1), ImVec2(1, 0)); 
+        // Render Image
         ImGui::Image((ImTextureID)(intptr_t)texID, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+        
+        // Capture Bounds for Input
+        ImVec2 min = ImGui::GetItemRectMin();
+        ImVec2 max = ImGui::GetItemRectMax();
+        
+        gameViewBounds_.x = min.x;
+        gameViewBounds_.y = min.y;
+        gameViewBounds_.w = max.x - min.x;
+        gameViewBounds_.h = max.y - min.y;
+        gameViewBounds_.isHovered = ImGui::IsItemHovered();
+        gameViewBounds_.isFocused = ImGui::IsWindowFocused(); 
+    }
+    ImGui::End();
+}
+
+void EditorWindows::drawSceneWindow(unsigned int texID, int w, int h) {
+    if (ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+        ImGui::Image((ImTextureID)(intptr_t)texID, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+        
+        ImVec2 min = ImGui::GetItemRectMin();
+        ImVec2 max = ImGui::GetItemRectMax();
+        
+        sceneViewBounds_.x = min.x;
+        sceneViewBounds_.y = min.y;
+        sceneViewBounds_.w = max.x - min.x;
+        sceneViewBounds_.h = max.y - min.y;
+        sceneViewBounds_.isHovered = ImGui::IsItemHovered();
+        sceneViewBounds_.isFocused = ImGui::IsWindowFocused(); 
     }
     ImGui::End();
 }
