@@ -15,6 +15,18 @@ public:
     GameObject* parent = nullptr;
     std::vector<GameObject*> children;
 
+    std::string modelPath; // For simple serialization
+    int meshIndex = -1;    // For simple serialization
+
+    struct CameraComponent {
+        bool enabled = false;
+        double fov = 1.047; // ~60 degrees in radians
+        double zNear = 0.1;
+        double zFar = 1000.0;
+        double aspect = 16.0 / 9.0;
+    };
+    CameraComponent camera;
+
     GameObject(const std::string& n = "GameObject");
     void draw() const;
     void setMesh(std::shared_ptr<Mesh> m);

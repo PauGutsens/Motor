@@ -11,6 +11,9 @@
 #include "ModelLoader.h"
 #include "Camera.h"
 #include "AssetDatabase.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 using std::string;
 namespace fs = std::filesystem;
@@ -47,18 +50,23 @@ void EditorWindows::setScene(std::vector<std::shared_ptr<GameObject>>* scene,
     selected_ = selected;
 }
 
-void EditorWindows::setMainCamera(Camera* cam) {
-    main_camera_ = cam;
-}
 
-void EditorWindows::render() {
+
+void EditorWindows::render(bool* isPlaying, bool* isPaused, bool* step) {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
     ImGuiIO& io = ImGui::GetIO();
     fps_history_[fps_index_] = io.Framerate;
     fps_index_ = (fps_index_ + 1) % kFpsHistory;
+    
     drawMainMenu();
+    
+    // [NEW] Toolbar inside frame scope
+    if (isPlaying && isPaused && step) {
+        drawToolbar(*isPlaying, *isPaused, *step);
+    }
+
     if (show_console_)   drawConsole();
     if (show_config_)    drawConfig();
     if (show_hierarchy_) drawHierarchy();
@@ -114,6 +122,78 @@ void EditorWindows::drawMainMenu() {
         }
         ImGui::EndMainMenuBar();
     }
+}
+
+// Helper to center widgets
+static void CenterCursor(float width) {
+    float off = (ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x - width) * 0.5f;
+    if (off > 0.0f) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
+}
+
+void EditorWindows::drawToolbar(bool& isPlaying, bool& isPaused, bool& step) {
+    ImGui::Begin("Toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    
+    float buttonW = 40.0f;
+    float totalW = buttonW * 3 + 20; // Approx width
+    CenterCursor(totalW);
+
+    // Play/Stop Button
+    if (!isPlaying) {
+        if (ImGui::Button(" |> ", ImVec2(buttonW, 0))) {
+            isPlaying = true;
+            isPaused = false;
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Play");
+    } else {
+        // Active Play State
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.6f, 1.0f, 1.0f)); // Blue-ish
+        if (ImGui::Button(" [] ", ImVec2(buttonW, 0))) {
+            isPlaying = false;
+            isPaused = false;
+        }
+        ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Stop");
+    }
+
+    ImGui::SameLine();
+
+    // Pause/Resume Button
+    if (isPlaying && isPaused) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.8f, 0.2f, 1.0f)); // Orange
+        if (ImGui::Button(" |> ", ImVec2(buttonW, 0))) {
+             isPaused = false;
+        }
+        ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Resume");
+    } else {
+        ImGui::BeginDisabled(!isPlaying);
+        if (ImGui::Button(" || ", ImVec2(buttonW, 0))) {
+             isPaused = true;
+        }
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Pause");
+    }
+
+    ImGui::SameLine();
+
+    // Step Button
+    ImGui::BeginDisabled(!isPlaying || !isPaused);
+    if (ImGui::Button(" >| ", ImVec2(buttonW, 0))) {
+        step = true;
+    }
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Step Frame");
+
+    // Visual Indicator for Play Mode
+    if (isPlaying) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "  (GAME MODE)");
+        
+        // Use a window background tint? 
+        // ImGui::GetBackgroundDrawList()->AddRectFilled(...) // Maybe too complex for now
+    }
+
+    ImGui::End();
 }
 
 void EditorWindows::drawConsole() {
@@ -486,70 +566,26 @@ void EditorWindows::drawInspector() {
                 ImGui::Image((ImTextureID)(intptr_t)texID, size);
             }
         }
+        // Camera Component
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("Camera Component", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Is Camera", &go->camera.enabled);
+            if (go->camera.enabled) {
+                float fovDeg = glm::degrees((float)go->camera.fov);
+                if (ImGui::SliderFloat("FOV", &fovDeg, 30.0f, 120.0f)) go->camera.fov = glm::radians(fovDeg);
+                
+                float zNear = (float)go->camera.zNear;
+                if (ImGui::DragFloat("Near", &zNear, 0.01f, 0.01f, 100.0f)) go->camera.zNear = zNear;
+                
+                float zFar = (float)go->camera.zFar;
+                if (ImGui::DragFloat("Far", &zFar, 1.0f, 10.0f, 10000.0f)) go->camera.zFar = zFar;
+                
+                ImGui::TextDisabled("Aspect Ratio is controlled by Window size");
+            }
+        }
     }
     else {
         ImGui::TextDisabled("No GameObject selected.");
-    }
-
-    // ============================================================
-    // CAMERA SETTINGS (siempre visible al final del Inspector)
-    // ============================================================
-    ImGui::Separator();
-    ImGui::Separator();
-
-    if (ImGui::CollapsingHeader("Camera (Main Scene Camera)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (main_camera_) {
-            Camera* cam = main_camera_;
-
-            // FOV
-            const double PI = 3.14159265358979323846;
-            float fovDeg = (float)(cam->fov * 180.0 / PI);
-            if (ImGui::SliderFloat("FOV", &fovDeg, 30.0f, 120.0f)) {
-                cam->fov = (double)(fovDeg * PI / 180.0);
-            }
-
-            // Aspect Ratio
-            float aspect = (float)cam->aspect;
-            if (ImGui::DragFloat("Aspect Ratio", &aspect, 0.01f, 0.1f, 10.0f)) {
-                cam->aspect = (double)aspect;
-            }
-
-            // Near and Far planes
-            float zNear = (float)cam->zNear;
-            float zFar = (float)cam->zFar;
-            if (ImGui::DragFloat("Near Plane", &zNear, 0.01f, 0.01f, 100.0f)) {
-                cam->zNear = (double)zNear;
-            }
-            if (ImGui::DragFloat("Far Plane", &zFar, 1.0f, 1.0f, 1000.0f)) {
-                cam->zFar = (double)zFar;
-            }
-
-            ImGui::Separator();
-
-            // Movement settings
-            float moveSpeed = (float)cam->moveSpeed;
-            if (ImGui::DragFloat("Move Speed", &moveSpeed, 0.1f, 0.1f, 100.0f)) {
-                cam->moveSpeed = (double)moveSpeed;
-            }
-
-            float lookSens = (float)cam->lookSensitivity;
-            if (ImGui::DragFloat("Look Sensitivity", &lookSens, 0.0001f, 0.0001f, 0.1f, "%.4f")) {
-                cam->lookSensitivity = (double)lookSens;
-            }
-
-            float panSpeed = (float)cam->panSpeed;
-            if (ImGui::DragFloat("Pan Speed", &panSpeed, 0.0001f, 0.0001f, 0.1f, "%.4f")) {
-                cam->panSpeed = (double)panSpeed;
-            }
-
-            float zoomSpeed = (float)cam->zoomSpeed;
-            if (ImGui::DragFloat("Zoom Speed", &zoomSpeed, 0.1f, 0.1f, 10.0f)) {
-                cam->zoomSpeed = (double)zoomSpeed;
-            }
-        }
-        else {
-            ImGui::TextDisabled("Camera not initialized.");
-        }
     }
     ImGui::End();
 }
@@ -862,4 +898,16 @@ ImGui::EndPopup();
         ImGui::TextDisabled("Error reading folder");
    LOG_ERROR("Asset tree error: " + std::string(e.what()));
     }
+void EditorWindows::drawGameWindow(unsigned int texID, int w, int h) {
+    if (ImGui::Begin("Game View", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+        
+        // Simple fitting (stretch or fit?)
+        // For now, stretch to fill window
+        
+        // Note: OpenGL textures are upside down in ImGui unless flipped UVs
+        // ImGui::Image((void*)(intptr_t)texID, viewportSize, ImVec2(0, 1), ImVec2(1, 0)); 
+        ImGui::Image((ImTextureID)(intptr_t)texID, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+    }
+    ImGui::End();
 }

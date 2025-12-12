@@ -1,5 +1,7 @@
 ﻿#include <iostream>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <GL/glew.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
@@ -18,17 +20,35 @@
 #include <filesystem>
 #include "AABB.h"
 #include "Frustum.h"
+#include "Octree.h"
+#include "SceneSerializer.h" // [NEW]
 
 using namespace std;
 namespace fs = std::filesystem;
-static EditorWindows editor;
-static Camera camera;
+static EditorWindows editor; // Restored
+
+
+// static Camera camera; // REMOVED
+static std::shared_ptr<GameObject> mainCamera = nullptr;
+struct CameraState { Transform transform; GameObject::CameraComponent camComp; };
+static CameraState storedEditorCamera; // To restore editor camera properties
 static auto lastFrameTime = chrono::high_resolution_clock::now();
 SDL_Window* window = nullptr;
 static SDL_GLContext glContext = nullptr;
 static bool running = true;
 static vector<shared_ptr<GameObject>> gameObjects;
 static shared_ptr<GameObject> selectedGameObject = nullptr;
+
+// [NEW] Simulation State
+static bool isPlaying = false;
+static bool isPaused = false;
+static bool s_Step = false; // Restored
+
+// static Camera editorCamera; // REMOVED
+static string tempScenePath = "temp.scene";
+
+// [NEW] Octree instance (Size -200 to 200 to cover typical scenes)
+static Octree mainOctree(AABB(vec3(-200, -200, -200), vec3(200, 200, 200)));
 
 static std::string getAssetsPath() {
     namespace fs = std::filesystem;
@@ -59,29 +79,70 @@ static std::string getAssetsPath() {
     return "Assets";
 }
 
-static void loadStreetEnvironment() {
+static void loadModelToScene(const std::string& filename, const std::string& namePrefix) {
     std::string assetsPath = getAssetsPath();
-    fs::path streetPath = fs::absolute(fs::path(assetsPath) / "street.fbx");
-    std::cout << "Attempting to load StreetEnvironment from: " << streetPath.string() << std::endl;
-    if (!fs::exists(streetPath)) {
-        std::cerr << "[ERROR] street.fbx not found at: " << streetPath.string() << std::endl;
-        std::cerr << "-> Put the file here, OR drag & drop an FBX into the window." << std::endl;
+    fs::path modelPath = fs::absolute(fs::path(assetsPath) / filename);
+    
+    if (!fs::exists(modelPath)) {
+        std::cerr << "[ERROR] " << filename << " not found at: " << modelPath.string() << std::endl;
         return;
     }
-    auto meshes = ModelLoader::loadModel(streetPath.string());
+
+    auto meshes = ModelLoader::loadModel(modelPath.string());
     if (meshes.empty()) {
-        std::cerr << "[ERROR] Assimp failed to load model. Check console above for details." << std::endl;
+        std::cerr << "[ERROR] Failed to load " << filename << std::endl;
         return;
     }
-    std::cout << "StreetEnvironment loaded successfully with " << meshes.size() << " meshes." << std::endl;
+
+    std::cout << "[Scene] Loaded " << filename << " with " << meshes.size() << " meshes." << std::endl;
+
     for (size_t i = 0; i < meshes.size(); i++) {
-        auto gameObject = std::make_shared<GameObject>("Street_" + std::to_string(i));
+        auto gameObject = std::make_shared<GameObject>(namePrefix + "_" + std::to_string(i));
         gameObject->setMesh(meshes[i]);
+        
+        // [NEW] Store metadata for serialization
+        gameObject->modelPath = filename;
+        gameObject->meshIndex = (int)i;
+        
+        // Optional: Position BakerHouse slightly differently so it's not inside the street or vice versa?
+        // For now, load at origin as requested.
+        
         gameObjects.push_back(gameObject);
+        mainOctree.insert(gameObject);
     }
 }
 
 
+
+static void createMainCamera() {
+    // Check if camera already exists in scene
+    for (auto& go : gameObjects) {
+        if (go->camera.enabled) {
+            mainCamera = go;
+            return;
+        }
+    }
+
+    // Create new
+    mainCamera = std::make_shared<GameObject>("Main Camera");
+    mainCamera->camera.enabled = true;
+    mainCamera->transform.setPosition({0, 5, 20});
+    mainCamera->transform.rotateEulerDeltaDeg({ -15, 0, 0 }); 
+    
+    gameObjects.push_back(mainCamera);
+    mainOctree.insert(mainCamera);
+}
+
+static void loadDefaultScene() {
+    mainOctree.clear();
+    gameObjects.clear(); // Clear existing objects if any
+    
+    std::cout << "Loading Default Scene..." << std::endl;
+    loadModelToScene("street.fbx", "Street");
+    loadModelToScene("BakerHouse.fbx", "BakerHouse");
+    
+    createMainCamera();
+}
 
 static void loadModelFromFile(const string& filepath) {
     cout << "Loading model from: " << filepath << endl;
@@ -99,6 +160,7 @@ static void loadModelFromFile(const string& filepath) {
         gameObject->setMesh(meshes[i]);
         gameObject->transform.pos() = vec3(gameObjects.size() * 2.0, 0, 0);
         gameObjects.push_back(gameObject);
+        mainOctree.insert(gameObject); // [NEW] Insert into Octree
     }
 }
 
@@ -256,42 +318,69 @@ static void updateProjection(int width, int height) {
         viewportY = (height - viewportHeight) / 2;
     }
     glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
-    camera.aspect = targetAspect;
-    glMatrixMode(GL_PROJECTION);
-    glLoadMatrixd(&camera.projection()[0][0]);
+    
+    if (mainCamera && mainCamera->camera.enabled) {
+         mainCamera->camera.aspect = targetAspect;
+         
+         glMatrixMode(GL_PROJECTION);
+         // Construct Projection
+         double fov = mainCamera->camera.fov;
+         double zNear = mainCamera->camera.zNear;
+         double zFar = mainCamera->camera.zFar;
+         mat4 projection = glm::perspective(fov, targetAspect, zNear, zFar);
+         glLoadMatrixd(glm::value_ptr(projection));
+    }
 }
 
-static Ray getRayFromMouse(int mouseX, int mouseY, const Camera& cam, int screenWidth, int screenHeight) {
-    // Convertir coordenadas de pantalla a NDC (Normalized Device Coordinates)
-    // En OpenGL, Y=0 está abajo, pero en ventana Y=0 está arriba
+static Ray getRayFromMouse(int mouseX, int mouseY, const vec3& camPos, const mat4& proj, const mat4& view, int screenWidth, int screenHeight) {
     double x = (2.0 * mouseX) / screenWidth - 1.0;
-    double y = 1.0 - (2.0 * mouseY) / screenHeight; // Invertir Y
+    double y = 1.0 - (2.0 * mouseY) / screenHeight; 
 
-    // NDC del near plane
     vec4 rayClip(x, y, -1.0, 1.0);
-
-    // Convertir a eye space
-    mat4 invProj = glm::inverse(cam.projection());
+    mat4 invProj = glm::inverse(proj);
     vec4 rayEye = invProj * rayClip;
-    rayEye = vec4(rayEye.x, rayEye.y, -1.0, 0.0); // Forward direction
+    rayEye = vec4(rayEye.x, rayEye.y, -1.0, 0.0); 
 
-    // Convertir a world space
-    mat4 invView = glm::inverse(cam.view());
+    mat4 invView = glm::inverse(view);
     vec4 rayWorld = invView * rayEye;
     vec3 direction = glm::normalize(vec3(rayWorld));
 
-    return Ray(cam.transform.pos(), direction);
+    return Ray(camPos, direction);
 }
 
 static shared_ptr<GameObject> selectWithRaycast(int mouseX, int mouseY) {
     if (gameObjects.empty()) return nullptr;
     int screenWidth, screenHeight;
     SDL_GetWindowSize(window, &screenWidth, &screenHeight);
-    Ray ray = getRayFromMouse(mouseX, mouseY, camera, screenWidth, screenHeight);
+    
+    Ray ray(vec3(0), vec3(0,0,-1));
+    if(mainCamera && mainCamera->camera.enabled) {
+        double fov = mainCamera->camera.fov;
+        double aspect = mainCamera->camera.aspect;
+        double zNear = mainCamera->camera.zNear;
+        double zFar = mainCamera->camera.zFar;
+        mat4 proj = glm::perspective(fov, aspect, zNear, zFar);
+        mat4 view = glm::inverse(mainCamera->transform.mat());
+        ray = getRayFromMouse(mouseX, mouseY, mainCamera->transform.pos(), proj, view, screenWidth, screenHeight);
+    }
+    
+    // [NEW] Use Octree to get candidates
+    // Note: If Objects moved, we should ideally update octree.
+    // For now, assuming static scene or that user will accept some inaccuracies if moving things wildly.
+    auto candidates = mainOctree.queryRay(ray);
+    
+    // If octree is empty or something fails, fallback to all? 
+    // No, empty candidates means no intersection with large boxes.
+    // However, since we might dynamically add objects without inserting (if I missed a spot), 
+    // let's stick to candidates.
+    
+    // Fallback: If candidates empty but gameObjects not empty, maybe Octree not populated?
+    // Should be populated.
+    
     shared_ptr<GameObject> closest = nullptr;
     double closestDist = std::numeric_limits<double>::max();
 
-    for (auto& go : gameObjects) {
+    for (auto& go : candidates) {
         if (!go->mesh) continue;
         mat4 worldMatrix = computeWorldMatrix(go.get());
         AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
@@ -306,76 +395,51 @@ static shared_ptr<GameObject> selectWithRaycast(int mouseX, int mouseY) {
     return closest;
 }
 
+
+
+// [MOVED] Input Handling
 static void handle_input() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL3_ProcessEvent(&event);
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.WantCaptureMouse || io.WantCaptureKeyboard) break;
-        switch (event.type) {
-        case SDL_EVENT_QUIT:
-            running = false;
-            break;
-        case SDL_EVENT_KEY_DOWN:
-            if (event.key.scancode == SDL_SCANCODE_ESCAPE) running = false;
-
-            if (event.key.scancode == SDL_SCANCODE_F && selectedGameObject) {
-                vec3 center = selectedGameObject->transform.pos();
-                double radius = 1.5;
-                camera.focusOn(center, radius);
-            }
-
-            camera.onKeyDown(event.key.scancode);
-            break;
-        case SDL_EVENT_KEY_UP:
-            camera.onKeyUp(event.key.scancode);
-            break;
-        case SDL_EVENT_MOUSE_WHEEL:
-            camera.onMouseWheel(event.wheel.y);
-            break;
-        case SDL_EVENT_MOUSE_BUTTON_DOWN:
-            camera.onMouseButton(event.button.button, 1, event.button.x, event.button.y);
-            if (event.button.button == SDL_BUTTON_LEFT) {
-                ImGuiIO& io = ImGui::GetIO();
-                if (!io.WantCaptureMouse) {
-                    auto hit = selectWithRaycast(event.button.x, event.button.y);
-                    if (hit) {
-                        if (selectedGameObject) {
-                            selectedGameObject->isSelected = false;
-                        }
-                        selectedGameObject = hit;
-                        selectedGameObject->isSelected = true;
-                        cout << "Selected (Raycast): " << selectedGameObject->name << endl;
-                    }
-                    else {
-                        if (selectedGameObject) {
-                            selectedGameObject->isSelected = false;
-                            selectedGameObject = nullptr;
-                            cout << "Deselected" << endl;
-                        }
-                    }
-                }
-            }
-            break;
-        case SDL_EVENT_MOUSE_BUTTON_UP:
-            camera.onMouseButton(event.button.button, 0, event.button.x, event.button.y);
-            break;
-        case SDL_EVENT_MOUSE_MOTION:
-            camera.onMouseMove(event.motion.x, event.motion.y);
-            break;
-        case SDL_EVENT_WINDOW_RESIZED: {
-            int width, height;
-            SDL_GetWindowSize(window, &width, &height);
-            updateProjection(width, height);
-            break;
+        if (event.type == SDL_EVENT_QUIT) running = false;
+        if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(window)) running = false;
+        
+        // Handle Camera Mouse Look
+        if (mainCamera && !ImGui::GetIO().WantCaptureMouse) {
+             const bool* keys = SDL_GetKeyboardState(NULL);
+             if (event.type == SDL_EVENT_MOUSE_MOTION && (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) {
+                 float sensitivity = 0.2f;
+                 float dx = (float)event.motion.xrel;
+                 float dy = (float)event.motion.yrel;
+                 // Rotate Pitch (X) and Yaw (Y/WorldUp)
+                 // Note: RotateEulerDeltaDeg is local.
+                 mainCamera->transform.rotateEulerDeltaDeg(vec3(-dy * sensitivity, -dx * sensitivity, 0));
+             }
         }
-        case SDL_EVENT_DROP_FILE:
-            if (event.drop.data) {
-                string droppedFile = event.drop.data;
-                cout << "File dropped: " << droppedFile << endl;
-                handleDropFile(droppedFile);
+        
+        if (event.type == SDL_EVENT_DROP_FILE && event.drop.data) {
+             string droppedFile = event.drop.data;
+             handleDropFile(droppedFile);
+        }
+    }
+    
+    // Continuous Keyboard
+    if (mainCamera && !ImGui::GetIO().WantCaptureKeyboard) {
+        const bool* keys = SDL_GetKeyboardState(NULL);
+        if ((SDL_GetMouseState(NULL, NULL) & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT)) || isPlaying) {
+            double speed = 0.1; 
+            if (keys[SDL_SCANCODE_LSHIFT]) speed *= 3.0;
+            
+            vec3 move(0);
+            if (keys[SDL_SCANCODE_W]) move += mainCamera->transform.fwd();
+            if (keys[SDL_SCANCODE_S]) move -= mainCamera->transform.fwd();
+            if (keys[SDL_SCANCODE_A]) move -= mainCamera->transform.right();
+            if (keys[SDL_SCANCODE_D]) move += mainCamera->transform.right();
+            
+            if (glm::length(move) > 0.0001) {
+                mainCamera->transform.translate(glm::normalize(move) * speed);
             }
-            break;
         }
     }
 }
@@ -384,64 +448,84 @@ static void render() {
     auto currentTime = chrono::high_resolution_clock::now();
     double deltaTime = chrono::duration<double>(currentTime - lastFrameTime).count();
     lastFrameTime = currentTime;
-    camera.update(deltaTime);
+    // camera.update(deltaTime); // Removed
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
-    glLoadMatrixd(&camera.view()[0][0]);
+    
+    mat4 view(1.0f);
+    mat4 projection(1.0f);
+    
+    if (mainCamera && mainCamera->camera.enabled) {
+        view = glm::inverse(mainCamera->transform.mat());
+        glLoadMatrixd(glm::value_ptr(view));
+        
+        // Construct Projection for Frustum/GL
+        double aspect = mainCamera->camera.aspect; // Should be updated by window size
+        double fov = mainCamera->camera.fov;
+        double zNear = mainCamera->camera.zNear;
+        double zFar = mainCamera->camera.zFar;
+        projection = glm::perspective(fov, aspect, zNear, zFar);
+    } else {
+        glLoadIdentity();
+    }
+
     draw_floorGrid(16, 0.25);
-    mat4 projView = camera.projection() * camera.view();
+    
+    mat4 projView = projection * view;
     Frustum frustum;
     frustum.extractFromCamera(projView);
-    int totalObjects = 0;
+    int totalObjects = (int)gameObjects.size();
     int culledObjects = 0;
     int renderedObjects = 0;
     glColor3f(1.0f, 1.0f, 1.0f);
-    for (const auto& go : gameObjects) {
-        totalObjects++;
-
-        bool shouldRender = true;
-
-        // Aplicar frustum culling si está activado
-        if (editor.isFrustumCullingEnabled() && go->mesh) {
-            mat4 worldMatrix = computeWorldMatrix(go.get());
-            AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
-            if (worldAABB.isValid()) {
-                shouldRender = frustum.containsAABB(worldAABB);
-                if (!shouldRender) {
-                    culledObjects++;
+    
+    // [NEW] Use Octree for rendering if Culling enabled
+    if (editor.isFrustumCullingEnabled()) {
+        auto potentials = mainOctree.queryFrustum(frustum);
+        // Still double check exact AABB for accuracy, or trust node containment?
+        // Query returns objects in intersecting nodes. Precise check is good.
+        for (const auto& go : potentials) {
+             if (go->mesh) {
+                mat4 worldMatrix = computeWorldMatrix(go.get());
+                AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
+                if (frustum.containsAABB(worldAABB)) {
+                    go->draw();
+                    renderedObjects++;
+                } else {
+                    // candidate from octree, but accurate cull failed
+                    // culledObjects count is tricky here because we don't iterate all O(N)
+                    // We can estimate culled = Total - Rendered
                 }
-            }
+             }
         }
-        if (shouldRender) {
-            go->draw();
-            renderedObjects++;
+        culledObjects = totalObjects - renderedObjects;
+    } 
+    else {
+        // [OLD] Linear path
+        for (const auto& go : gameObjects) {
+             go->draw();
+             renderedObjects++;
         }
     }
 
     // Dibujar AABBs si está activado
     if (editor.shouldShowAABBs()) {
+        // [NEW] Draw Octree Debug
+        mainOctree.drawDebug();
+        
+        // Also draw object AABBs for verification
         for (const auto& go : gameObjects) {
             if (go->mesh && go->mesh->localAABB.isValid()) {
                 mat4 worldMatrix = computeWorldMatrix(go.get());
                 AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
                 glm::u8vec3 color;
-                float lineWidth;
-
                 if (go->isSelected) {
                     color = glm::u8vec3(255, 255, 0); 
-                    lineWidth = 3.0f;
                 }
                 else {
-                    // Verificar si está dentro del frustum
                     bool inFrustum = frustum.containsAABB(worldAABB);
-                    if (inFrustum) {
-                        color = glm::u8vec3(0, 255, 0);
-                    }
-                    else {
-                        color = glm::u8vec3(255, 0, 0);
-                    }
-                    lineWidth = 2.0f;
+                    color = inFrustum ? glm::u8vec3(0, 255, 0) : glm::u8vec3(255, 0, 0);
                 }
                 drawAABB(worldAABB, color);
             }
@@ -452,7 +536,56 @@ static void render() {
         mat4 invProjView = glm::inverse(projView);
         drawFrustum(frustum, invProjView, glm::u8vec3(255, 255, 255));
     }
-    editor.render();
+
+    // [NEW] Draw Toolbar and Handle State (Handled inside editor.render)
+    static bool lastPlaying = false;
+    
+    // Pass state to editor so it draws the toolbar INSIDE the ImGui frame
+    editor.render(&isPlaying, &isPaused, &s_Step);
+
+    if (isPlaying && !lastPlaying) {
+        // Start
+        // Start
+        cout << "Starting Simulation... Saving scene to " << tempScenePath << endl;
+        SceneSerializer::SaveScene(tempScenePath, gameObjects);
+        // Save Editor Camera
+        if (mainCamera) {
+            storedEditorCamera.transform = mainCamera->transform;
+            storedEditorCamera.camComp = mainCamera->camera;
+        }
+    }
+    else if (!isPlaying && lastPlaying) {
+        // Stop
+        // Stop
+        cout << "Stopping Simulation... Restoring scene..." << endl;
+        SceneSerializer::LoadScene(tempScenePath, gameObjects);
+        
+        // Find main camera again
+        mainCamera = nullptr;
+        for(auto& go : gameObjects) if(go->camera.enabled) mainCamera = go;
+        
+        // Restore Editor Camera if found
+        if (mainCamera) {
+            mainCamera->transform = storedEditorCamera.transform;
+            mainCamera->camera = storedEditorCamera.camComp;
+        }
+        
+        // Re-insert into Octree (since objects are new)
+        mainOctree.clear();
+        for(auto& go : gameObjects) mainOctree.insert(go);
+        
+        selectedGameObject = nullptr; // Selection invalid
+    }
+    lastPlaying = isPlaying;
+    
+    // Simulation Logic (if playing and not paused, or stepping)
+    if (isPlaying && (!isPaused || s_Step)) {
+        // Here we would update physics or scripts
+        // For now, nothing moves unless scripts exist
+        s_Step = false;
+    }
+
+    // editor.render() called above
 
     static int frameCount = 0;
     if (editor.isFrustumCullingEnabled() && ++frameCount >= 60) {
@@ -502,7 +635,8 @@ int main(int argc, char* argv[]) {
     glContext = SDL_GL_CreateContext(window);
     editor.init(window, glContext);
     editor.setScene(&gameObjects, &selectedGameObject);
-    editor.setMainCamera(&camera);  // Pasar cámara principal al editor
+    editor.setScene(&gameObjects, &selectedGameObject);
+    // editor.setMainCamera(&camera);  // REMOVED
     if (!glContext) {
         cout << "OpenGL context could not be created!" << endl;
         return EXIT_FAILURE;
@@ -515,10 +649,12 @@ int main(int argc, char* argv[]) {
     AssetDatabase::instance().initialize(assetsPath, libraryPath);
     editor.setAssetDatabase(&AssetDatabase::instance());  // Connect to editor
 
-    camera.transform.pos() = vec3(0, 5, 10);
-    //camera.orbitTarget = vec3(0, 0, 0);
+    //camera.transform.pos() = vec3(0, 5, 10);
+    //camera.transform.pos() = vec3(0, 5, 10);
+    // Initial Projection Update
     updateProjection(screenWidth, screenHeight);
-    loadStreetEnvironment();
+    // Init scene logic moved to loadDefaultScene
+    loadDefaultScene();
     cout << "========================================" << endl;
     cout << "Instructions:" << endl;
     cout << "- Drag & drop FBX to load models" << endl;
@@ -536,7 +672,7 @@ int main(int argc, char* argv[]) {
     AssetDatabase::instance().shutdown();
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
-editor.shutdown();
+    editor.shutdown();
     SDL_Quit();
     return EXIT_SUCCESS;
 }

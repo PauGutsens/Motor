@@ -9,17 +9,17 @@
 #include "Logger.h"
 #include <SDL3/SDL.h>
 
-class Camera; // Forward declaration
+
 class AssetDatabase; // Forward declaration
 
 class EditorWindows {
 public:
     void init(SDL_Window* window, SDL_GLContext gl);
     void shutdown();
-    void render();
+    void render(bool* isPlaying = nullptr, bool* isPaused = nullptr, bool* step = nullptr);
     void setScene(std::vector<std::shared_ptr<GameObject>>* scene,
         std::shared_ptr<GameObject>* selected);
-    void setMainCamera(Camera* cam); // Para recibir puntero a la cámara principal
+
     bool wantsQuit() const { return wants_quit_; }
     bool shouldShowAABBs() const { return show_aabbs_; }
     bool isFrustumCullingEnabled() const { return enable_frustum_culling_; } 
@@ -27,6 +27,11 @@ public:
 
     // Asset system integration
     void setAssetDatabase(AssetDatabase* db) { asset_database_ = db; }
+
+    void drawAssets();
+    void drawToolbar(bool& isPlaying, bool& isPaused, bool& step); // [NEW] Logic for Play/Stop
+    void ensureChecker();
+    void drawGameWindow(unsigned int texID, int w, int h); // [NEW]
 
 private:
     bool show_console_ = true;
@@ -48,7 +53,7 @@ private:
     std::unordered_map<GameObject*, unsigned int> prev_tex_;
     std::vector<std::shared_ptr<GameObject>>* scene_ = nullptr;
     std::shared_ptr<GameObject>* selected_ = nullptr;
-    Camera* main_camera_ = nullptr; // Puntero a cámara principal
+
     AssetDatabase* asset_database_ = nullptr; // Asset database reference
     std::unordered_set<GameObject*> openNodes_;
     GameObject* pendingFocus_ = nullptr;
@@ -67,9 +72,7 @@ private:
     void drawHierarchy();
     void drawHierarchyNode(GameObject*);
     void drawInspector();
-    void drawAssets();
     void drawAssetTree(const std::string& folderPath, int depth);
-    void ensureChecker();
     void loadPrimitiveFromAssets(const std::string& name);
     std::string getAssetsPath();
 

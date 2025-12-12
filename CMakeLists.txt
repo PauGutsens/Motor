@@ -13,6 +13,7 @@ find_package(GLEW REQUIRED)
 find_package(DevIL REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 
+# Force CMake rescan
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 file(GLOB_RECURSE HEADERS "src/*.h" "src/*.hpp")
 
