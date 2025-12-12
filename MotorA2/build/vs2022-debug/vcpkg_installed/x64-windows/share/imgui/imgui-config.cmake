@@ -38,7 +38,7 @@ if (OFF)
     find_dependency(GLUT)
 endif()
 
-if (OFF OR OFF OR OFF)
+if (ON OR OFF OR OFF)
     find_dependency(SDL3 CONFIG)
 endif()
 

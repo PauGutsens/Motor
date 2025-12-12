@@ -6,6 +6,12 @@
     "glew",
     "glm",
     "assimp",
-    "imgui"
+    {
+      "name": "imgui",
+      "features": [
+        "sdl3-binding",
+        "opengl3-binding"
+      ]
+    }
   ]
 }

@@ -87,7 +87,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/include"</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -114,10 +114,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -137,7 +137,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>vcpkg_installed\x64-windows\debug\lib\SDL3.lib;opengl32.lib;vcpkg_installed\x64-windows\debug\lib\glew32d.lib;vcpkg_installed\x64-windows\debug\lib\assimp-vc143-mtd.lib;vcpkg_installed\x64-windows\debug\lib\glm.lib;vcpkg_installed\x64-windows\debug\lib\imguid.lib;opengl32.lib;glu32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;vcpkg_installed\x64-windows\debug\lib\glew32d.lib;vcpkg_installed\x64-windows\debug\lib\assimp-vc143-mtd.lib;vcpkg_installed\x64-windows\debug\lib\glm.lib;vcpkg_installed\x64-windows\debug\lib\imguid.lib;opengl32.lib;glu32.lib;vcpkg_installed\x64-windows\debug\lib\SDL3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <DataExecutionPrevention></DataExecutionPrevention>
@@ -156,7 +156,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/include"</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -184,10 +184,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -207,7 +207,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>vcpkg_installed\x64-windows\lib\SDL3.lib;opengl32.lib;vcpkg_installed\x64-windows\lib\glew32.lib;vcpkg_installed\x64-windows\lib\assimp-vc143-mt.lib;vcpkg_installed\x64-windows\lib\glm.lib;vcpkg_installed\x64-windows\lib\imgui.lib;opengl32.lib;glu32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;vcpkg_installed\x64-windows\lib\glew32.lib;vcpkg_installed\x64-windows\lib\assimp-vc143-mt.lib;vcpkg_installed\x64-windows\lib\glm.lib;vcpkg_installed\x64-windows\lib\imgui.lib;opengl32.lib;glu32.lib;vcpkg_installed\x64-windows\lib\SDL3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <DataExecutionPrevention></DataExecutionPrevention>
@@ -226,7 +226,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/include"</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -254,10 +254,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -277,7 +277,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>vcpkg_installed\x64-windows\lib\SDL3.lib;opengl32.lib;vcpkg_installed\x64-windows\lib\glew32.lib;vcpkg_installed\x64-windows\lib\assimp-vc143-mt.lib;vcpkg_installed\x64-windows\lib\glm.lib;vcpkg_installed\x64-windows\lib\imgui.lib;opengl32.lib;glu32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;vcpkg_installed\x64-windows\lib\glew32.lib;vcpkg_installed\x64-windows\lib\assimp-vc143-mt.lib;vcpkg_installed\x64-windows\lib\glm.lib;vcpkg_installed\x64-windows\lib\imgui.lib;opengl32.lib;glu32.lib;vcpkg_installed\x64-windows\lib\SDL3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <DataExecutionPrevention></DataExecutionPrevention>
@@ -296,7 +296,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/yunqian/Documents/GitHub/Motor/MotorA2/build/vs2022-debug/vcpkg_installed/x64-windows/include"</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -323,10 +323,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor;C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\build\vs2022-debug\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -346,7 +346,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>vcpkg_installed\x64-windows\lib\SDL3.lib;opengl32.lib;vcpkg_installed\x64-windows\lib\glew32.lib;vcpkg_installed\x64-windows\lib\assimp-vc143-mt.lib;vcpkg_installed\x64-windows\lib\glm.lib;vcpkg_installed\x64-windows\lib\imgui.lib;opengl32.lib;glu32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;vcpkg_installed\x64-windows\lib\glew32.lib;vcpkg_installed\x64-windows\lib\assimp-vc143-mt.lib;vcpkg_installed\x64-windows\lib\glm.lib;vcpkg_installed\x64-windows\lib\imgui.lib;opengl32.lib;glu32.lib;vcpkg_installed\x64-windows\lib\SDL3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <DataExecutionPrevention></DataExecutionPrevention>
@@ -421,7 +421,26 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\GameObject.cpp" />
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\Logger.cpp" />
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\Transform.cpp" />
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor\Camera.cpp" />
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor\EditorWindows.cpp" />
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\Mesh.cpp" />
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\MeshImporter.cpp" />
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\ModelLoader.cpp" />
     <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\main.cpp" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\AABB.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\GameObject.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\Logger.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\Transform.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\types.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor\Camera.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor\EditorWindows.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\Mesh.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\MeshImporter.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\ModelLoader.h" />
+    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\TextureLoader.h" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
