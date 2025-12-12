@@ -59,23 +59,23 @@ static std::string getAssetsPath() {
     return "Assets";
 }
 
-static void loadBakerHouse() {
+static void loadStreetEnvironment() {
     std::string assetsPath = getAssetsPath();
-    fs::path bakerHousePath = fs::absolute(fs::path(assetsPath) / "BakerHouse.fbx");
-    std::cout << "Attempting to load BakerHouse from: " << bakerHousePath.string() << std::endl;
-    if (!fs::exists(bakerHousePath)) {
-        std::cerr << "[ERROR] BakerHouse.fbx not found at: " << bakerHousePath.string() << std::endl;
+    fs::path streetPath = fs::absolute(fs::path(assetsPath) / "street.fbx");
+    std::cout << "Attempting to load StreetEnvironment from: " << streetPath.string() << std::endl;
+    if (!fs::exists(streetPath)) {
+        std::cerr << "[ERROR] street.fbx not found at: " << streetPath.string() << std::endl;
         std::cerr << "-> Put the file here, OR drag & drop an FBX into the window." << std::endl;
         return;
     }
-    auto meshes = ModelLoader::loadModel(bakerHousePath.string());
+    auto meshes = ModelLoader::loadModel(streetPath.string());
     if (meshes.empty()) {
         std::cerr << "[ERROR] Assimp failed to load model. Check console above for details." << std::endl;
         return;
     }
-    std::cout << "BakerHouse loaded successfully with " << meshes.size() << " meshes." << std::endl;
+    std::cout << "StreetEnvironment loaded successfully with " << meshes.size() << " meshes." << std::endl;
     for (size_t i = 0; i < meshes.size(); i++) {
-        auto gameObject = std::make_shared<GameObject>("BakerHouse_" + std::to_string(i));
+        auto gameObject = std::make_shared<GameObject>("Street_" + std::to_string(i));
         gameObject->setMesh(meshes[i]);
         gameObjects.push_back(gameObject);
     }
@@ -518,7 +518,7 @@ int main(int argc, char* argv[]) {
     camera.transform.pos() = vec3(0, 5, 10);
     //camera.orbitTarget = vec3(0, 0, 0);
     updateProjection(screenWidth, screenHeight);
-    loadBakerHouse();
+    loadStreetEnvironment();
     cout << "========================================" << endl;
     cout << "Instructions:" << endl;
     cout << "- Drag & drop FBX to load models" << endl;
