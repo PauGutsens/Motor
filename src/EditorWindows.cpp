@@ -552,7 +552,28 @@ void EditorWindows::drawInspector() {
             ImGui::SameLine(); if (ImGui::Button("Reset##scale")) T.resetScale();
             auto L = T.left(), U = T.up(), F = T.fwd();
         }
+
         if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
+            // Drop Target for Mesh
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "[Drop Model Here]");
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
+                    std::string path = (const char*)payload->Data;
+                    // Check extension
+                    std::string ext = path.substr(path.find_last_of("."));
+                    if (ext == ".fbx" || ext == ".obj" || ext == ".gltf" || ext == ".glb") {
+                         auto meshes = ModelLoader::loadModel(path);
+                         if (!meshes.empty()) {
+                             go->setMesh(meshes[0]);
+                             LOG_INFO("Dropped Mesh: " + path);
+                         } else {
+                             LOG_ERROR("Failed to load dropped mesh: " + path);
+                         }
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
             if (go->mesh) {
                 ImGui::Text("Vertices: %zu", go->mesh->getVertexCount());
                 ImGui::Text("Triangles: %zu", go->mesh->getTriangleCount());
@@ -598,6 +619,28 @@ void EditorWindows::drawInspector() {
                 float ar = (float)tw / (float)th;
                 ImVec2 size = ar > 1.0f ? ImVec2(previewSize, previewSize / ar) : ImVec2(previewSize * ar, previewSize);
                 ImGui::Image((ImTextureID)(intptr_t)texID, size);
+            }
+            
+            // Drop Target for Texture
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "[Drop Texture Here]");
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
+                    std::string path = (const char*)payload->Data;
+                    // Check extension
+                    std::string ext = path.substr(path.find_last_of("."));
+                    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".dds" || ext == ".bmp") {
+                         GLuint newTex = ModelLoader::loadTexture(path);
+                         if (newTex) {
+                             if (prev_tex_.find(go.get()) == prev_tex_.end())
+                                prev_tex_[go.get()] = go->getTextureID(); // Save old for restore
+                             go->setTexture(newTex);
+                             LOG_INFO("Dropped Texture: " + path);
+                         } else {
+                             LOG_ERROR("Failed to load dropped texture: " + path);
+                         }
+                    }
+                }
+                ImGui::EndDragDropTarget();
             }
         }
         // Camera Component
