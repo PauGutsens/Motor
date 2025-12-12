@@ -1,122 +1,158 @@
-﻿#include <GL/glew.h>            // ⭐ 必须第一个
+﻿#include <iostream>
+#include <cstdlib>
+
+// ⚠️ GLEW 必须在任何 gl.h 之前
+#include <GL/glew.h>
+
+// SDL3 main 支持
+#define SDL_MAIN_HANDLED
+#include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
-#include <iostream>
 
-#include "Camera.h"
-#include "EditorWindows.h"
-#include "Logger.h"
-
-
-
-
-// ⭐ 全局窗口指针（Camera.cpp 需要）
-// （extern SDL_Window* window 在 Camera.cpp 里声明过）
+// 如果 Camera.cpp / 其他文件用了 extern SDL_Window*
 SDL_Window* window = nullptr;
 
-// 选择 OpenGL 版本（ImGui 后端也依赖 3.0+）
-static const char* glsl_version = "#version 150";
+static void PrintSdlDiagnostics()
+{
+    std::cout << "SDL revision: '" << SDL_GetRevision() << "'\n";
+    std::cout << "SDL platform: '" << SDL_GetPlatform() << "'\n";
+
+    const char* env_driver = std::getenv("SDL_VIDEODRIVER");
+    std::cout << "Env SDL_VIDEODRIVER: '" << (env_driver ? env_driver : "") << "'\n";
+
+    int n = SDL_GetNumVideoDrivers();
+    std::cout << "SDL_GetNumVideoDrivers() = " << n << "\n";
+    for (int i = 0; i < n; ++i)
+    {
+        std::cout << "  driver[" << i << "] = '" << SDL_GetVideoDriver(i) << "'\n";
+    }
+
+    std::cout << "SDL_GetError() = '" << SDL_GetError() << "'\n";
+}
 
 int main(int argc, char** argv)
 {
-    // ---------------------------------------------------
-    // 初始化 SDL
-    // ---------------------------------------------------
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        std::cerr << "SDL_Init failed: " << SDL_GetError() << std::endl;
+    (void)argc;
+    (void)argv;
+
+    PrintSdlDiagnostics();
+
+    // ✅ SDL3：如果你自己写 main，必须调用
+    SDL_SetMainReady();
+
+    std::cout << "Initializing SDL core...\n";
+
+    // ⚠️ SDL3 返回 bool：true = success, false = failure
+    if (!SDL_Init(0)) {
+        std::cerr << "SDL_Init(0) failed: '" << SDL_GetError() << "'\n";
         return -1;
     }
 
-    // 设置 OpenGL 环境（Core Profile、3.2+）
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    if (!SDL_InitSubSystem(SDL_INIT_EVENTS)) {
+        std::cerr << "SDL_InitSubSystem(EVENTS) failed: '" << SDL_GetError() << "'\n";
+        SDL_Quit();
+        return -2;
+    }
 
-    // ---------------------------------------------------
-    // 创建窗口（全局 window 要在这里赋值）
-    // ---------------------------------------------------
+    if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
+        std::cerr << "SDL_InitSubSystem(VIDEO) failed: '" << SDL_GetError() << "'\n";
+        SDL_Quit();
+        return -3;
+    }
+
+    std::cout << "SDL initialized successfully.\n";
+
+    // ----------------------------
+    // OpenGL attributes
+    // ----------------------------
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+    // ----------------------------
+    // Window
+    // ----------------------------
     window = SDL_CreateWindow(
-        "MotorA2 Engine",
+        "MotorA2",
         1280, 720,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
     );
+
     if (!window) {
-        std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << std::endl;
+        std::cerr << "SDL_CreateWindow failed: '" << SDL_GetError() << "'\n";
         SDL_Quit();
-        return -1;
+        return -4;
     }
 
-    // ---------------------------------------------------
-    // 创建 OpenGL 上下文
-    // ---------------------------------------------------
-    SDL_GLContext gl_context = SDL_GL_CreateContext(window);
-    if (!gl_context) {
-        std::cerr << "SDL_GL_CreateContext failed: " << SDL_GetError() << std::endl;
+    // ----------------------------
+    // OpenGL context
+    // ----------------------------
+    SDL_GLContext glctx = SDL_GL_CreateContext(window);
+    if (!glctx) {
+        std::cerr << "SDL_GL_CreateContext failed: '" << SDL_GetError() << "'\n";
         SDL_DestroyWindow(window);
         SDL_Quit();
-        return -1;
+        return -5;
     }
 
-    SDL_GL_MakeCurrent(window, gl_context);
-    SDL_GL_SetSwapInterval(1); // 开启 VSync
+    SDL_GL_MakeCurrent(window, glctx);
+    SDL_GL_SetSwapInterval(1); // VSync
 
-    std::cout << "MotorA2 started successfully.\n";
+    // ----------------------------
+    // GLEW
+    // ----------------------------
+    glewExperimental = GL_TRUE;
+    GLenum glewErr = glewInit();
+    if (glewErr != GLEW_OK) {
+        std::cerr << "glewInit failed: "
+            << reinterpret_cast<const char*>(glewGetErrorString(glewErr)) << "\n";
+        SDL_GL_DestroyContext(glctx);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -6;
+    }
 
-    // ---------------------------------------------------
-    // 初始化你引擎的系统（可根据你们原来结构继续扩展）
-    // ---------------------------------------------------
-    Camera camera;
-    EditorWindows editor;
+    // 清掉 GLEW 的一个已知 GL 错误
+    glGetError();
 
+    std::cout << "OpenGL Vendor  : " << glGetString(GL_VENDOR) << "\n";
+    std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << "\n";
+    std::cout << "OpenGL Version : " << glGetString(GL_VERSION) << "\n";
+
+    // ----------------------------
+    // Main loop
+    // ----------------------------
     bool running = true;
-
-    // ---------------------------------------------------
-    // 主循环
-    // ---------------------------------------------------
-    while (running) {
-
-        // -------------------
-        // 处理事件
-        // -------------------
+    while (running)
+    {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_EVENT_QUIT) {
+            if (e.type == SDL_EVENT_QUIT)
                 running = false;
-            }
-            // 可加入 Editor / Camera 控制
         }
 
-        // -------------------
-        // 清屏
-        // -------------------
-        glViewport(0, 0, 1280, 720);
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+        int w = 1280, h = 720;
+        SDL_GetWindowSize(window, &w, &h);
+
+        glViewport(0, 0, w, h);
+        glEnable(GL_DEPTH_TEST);
+
+        glClearColor(0.15f, 0.15f, 0.18f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // -------------------
-        // TODO: 这里渲染 3D 场景
-        // - 使用 Camera
-        // - 使用 Mesh / ModelLoader
-        // - 使用 Renderer 系统
-        // -------------------
-
-        // -------------------
-        // TODO: 渲染 ImGui 编辑器界面
-        // editor.Draw();
-        // -------------------
-
-        // -------------------
-        // 显示这一帧
-        // -------------------
         SDL_GL_SwapWindow(window);
     }
 
-    // ---------------------------------------------------
-    // 清理
-    // ---------------------------------------------------
-    SDL_GL_DestroyContext(gl_context);
+    // ----------------------------
+    // Cleanup
+    // ----------------------------
+    SDL_GL_DestroyContext(glctx);
     SDL_DestroyWindow(window);
-    SDL_Quit();
+    window = nullptr;
 
+    SDL_Quit();
     return 0;
 }

@@ -429,6 +429,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\Mesh.cpp" />
     <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\MeshImporter.cpp" />
     <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\ModelLoader.cpp" />
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\TextureStubs.cpp" />
     <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\main.cpp" />
     <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\AABB.h" />
     <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\GameObject.h" />
