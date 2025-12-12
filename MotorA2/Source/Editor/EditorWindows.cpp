@@ -1,683 +1,493 @@
-﻿#include "EditorWindows.h"
+﻿// EditorWindows.cpp
+// 中英双语注释 / Chinese-English bilingual comments
+
+#include "EditorWindows.h"
+
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_opengl3.h>
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
-#include <filesystem>
-#include <vector>
-#include <algorithm>
-#include "ModelLoader.h"
-#include "Camera.h"
 
-using std::string;
+#include <SDL3/SDL.h>
+//#include <SDL3/SDL_opengl.h>
+#include <GL/glew.h> // Must be included before any OpenGL headers / 必须在任何 OpenGL 头文件之前
+
+#include <filesystem>
+#include <algorithm>
+#include <sstream>
+
+#include "Camera.h"
+#include "ModelLoader.h"
+
 namespace fs = std::filesystem;
 
 static void glTextureSize(GLuint tex, int& w, int& h) {
+    // Query texture size / 查询纹理尺寸
     w = h = 0;
     if (!tex) return;
     glBindTexture(GL_TEXTURE_2D, tex);
-    GLint tw = 0, th = 0;
-    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &tw);
-    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &th);
-    w = tw; h = th;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
+    window_ = window;
+    gl_ = gl;
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGui_ImplSDL3_InitForOpenGL(window, gl);
-    ImGui_ImplOpenGL3_Init("#version 130");
-    LOG_INFO("ImGui initialized (OpenGL3 backend).");
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+    // 你可以按需要打开键盘导航等
+    // Enable keyboard navigation if you want
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui::StyleColorsDark();
+
+    // SDL3 + OpenGL3 backend
+    ImGui_ImplSDL3_InitForOpenGL(window_, gl_);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
+    log("Editor initialized / 编辑器初始化完成");
 }
 
 void EditorWindows::shutdown() {
-    if (checker_tex_) { glDeleteTextures(1, &checker_tex_); checker_tex_ = 0; }
+    // Destroy ImGui backends / 释放 ImGui
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
+
+    window_ = nullptr;
+    gl_ = nullptr;
+    scene_ = nullptr;
+    selected_.reset();
 }
 
-
-void EditorWindows::setScene(std::vector<std::shared_ptr<GameObject>>* scene,
-    std::shared_ptr<GameObject>* selected) {
-    scene_ = scene;
-    selected_ = selected;
+void EditorWindows::processEvent(const SDL_Event& e) {
+    // Feed SDL events to ImGui / 把 SDL 事件交给 ImGui
+    ImGui_ImplSDL3_ProcessEvent(&e);
 }
 
-void EditorWindows::setMainCamera(Camera* cam) {
-    main_camera_ = cam;
-}
-
-void EditorWindows::render() {
+void EditorWindows::newFrame() {
+    // Start new ImGui frame / 开始新一帧
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
-    ImGuiIO& io = ImGui::GetIO();
-    fps_history_[fps_index_] = io.Framerate;
-    fps_index_ = (fps_index_ + 1) % kFpsHistory;
-    drawMainMenu();
-    if (show_console_)   drawConsole();
-    if (show_config_)    drawConfig();
-    if (show_hierarchy_) drawHierarchy();
-    if (show_inspector_) drawInspector();
-    if (show_about_) {
-        if (ImGui::Begin("About", &show_about_)) {
-            ImGui::TextUnformatted("Motor");
-            ImGui::TextUnformatted("Version: 0.1.0");
-            ImGui::Separator();
-            ImGui::TextUnformatted("Team Members: Pau Gutsens, Pau Hernandez, Ao Yunqian, Eduard Garcia");
-            ImGui::TextUnformatted("Libraries: SDL3, OpenGL, GLEW, ImGui, Assimp, DevIL");
-            ImGui::TextUnformatted("License: MIT");
-            ImGui::End();
-        }
-    }
+}
+
+void EditorWindows::render(Camera* camera) {
+    // Main UI / 主界面
+    drawMainMenuBar();
+
+    if (show_demo_) ImGui::ShowDemoWindow(&show_demo_);
+    if (show_about_) drawAbout();
+
+    drawHierarchy();
+    drawInspector(camera);
+    if (show_console_) drawConsole();
+
+    // Render ImGui / 渲染 ImGui
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void EditorWindows::drawMainMenu() {
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Exit", "Esc")) wants_quit_ = true;
-            ImGui::EndMenu();
+void EditorWindows::setScene(std::vector<std::shared_ptr<GameObject>>* scene) {
+    scene_ = scene;
+}
+
+void EditorWindows::log(const std::string& s) {
+    console_.push_back(s);
+    Logger::Log(s.c_str());
+}
+
+std::string EditorWindows::getAssetsPath() {
+    // Default: <project>/Assets
+    // 默认：工程根目录下的 Assets
+    // 这里用当前工作目录推断：通常 VS/CMake 调试时工作目录是 build/.../Debug
+    // We infer by current_path()
+    fs::path cwd = fs::current_path();
+    // Try to find "Assets" in parents / 向上找 Assets
+    for (int i = 0; i < 6; ++i) {
+        fs::path candidate = cwd / "Assets";
+        if (fs::exists(candidate) && fs::is_directory(candidate)) {
+            return candidate.string();
         }
-        if (ImGui::BeginMenu("View")) {
-            ImGui::MenuItem("Console", nullptr, &show_console_);
-            ImGui::MenuItem("Config", nullptr, &show_config_);
-            ImGui::MenuItem("Hierarchy", nullptr, &show_hierarchy_);
-            ImGui::MenuItem("Inspector", nullptr, &show_inspector_);
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Primitives")) {
-            if (ImGui::MenuItem("Load Cube"))      loadPrimitiveFromAssets("Cube.fbx");
-            if (ImGui::MenuItem("Load Sphere"))    loadPrimitiveFromAssets("Sphere.fbx");
-            if (ImGui::MenuItem("Load Cone"))      loadPrimitiveFromAssets("Cone.fbx");
-            if (ImGui::MenuItem("Load Cylinder"))  loadPrimitiveFromAssets("Cylinder.fbx");
-            if (ImGui::MenuItem("Load Torus"))     loadPrimitiveFromAssets("Torus.fbx");
-            if (ImGui::MenuItem("Load Plane"))     loadPrimitiveFromAssets("Plane.fbx");
-            if (ImGui::MenuItem("Load Disc"))      loadPrimitiveFromAssets("Disc.fbx");
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Help")) {
-            static const char* REPO = "https://github.com/PauGutsens/Motor";
-            if (ImGui::MenuItem("GitHub Docs"))       SDL_OpenURL((std::string(REPO)).c_str());
-            if (ImGui::MenuItem("Report a bug"))      SDL_OpenURL((std::string(REPO) + "/issues").c_str());
-            if (ImGui::MenuItem("Download latest"))   SDL_OpenURL((std::string(REPO) + "/releases").c_str());
-            ImGui::Separator();
-            ImGui::MenuItem("About", nullptr, &show_about_);
-            ImGui::EndMenu();
-        }
-        ImGui::EndMainMenuBar();
+        cwd = cwd.parent_path();
+        if (cwd.empty()) break;
     }
+    // Fallback / 兜底：直接用 ./Assets
+    return (fs::current_path() / "Assets").string();
+}
+
+void EditorWindows::loadStreetAsset(const std::string& filename) {
+    if (!scene_) {
+        log("Scene is null / scene_ 为空，先 setScene()");
+        return;
+    }
+
+    // Assets/Street/<filename>
+    fs::path p = fs::path(getAssetsPath()) / "Street" / filename;
+    if (!fs::exists(p)) {
+        log(std::string("Asset not found / 找不到资源: ") + p.string());
+        return;
+    }
+
+    // Use your ModelLoader to load mesh
+    // 使用你的 ModelLoader 加载 Mesh
+    std::shared_ptr<Mesh> mesh = ModelLoader::LoadModel(p.string());
+    if (!mesh) {
+        log(std::string("Failed to load model / 加载失败: ") + p.string());
+        return;
+    }
+
+    auto go = std::make_shared<GameObject>(p.stem().string());
+    go->setMesh(mesh);
+
+    // Root object: parent=null, children empty
+    // 根对象：parent=null，children 空
+    go->parent = nullptr;
+    go->children.clear();
+
+    // Put into scene ownership list / 放进 scene_ 的所有权列表
+    scene_->push_back(go);
+    setSelection(go);
+
+    log(std::string("Loaded / 已加载: ") + p.string());
+}
+
+void EditorWindows::drawMainMenuBar() {
+    if (!ImGui::BeginMainMenuBar()) return;
+
+    if (ImGui::BeginMenu("File")) {
+        // 你老师让用 Street：给两个常用入口
+        // Street pack shortcuts
+        if (ImGui::MenuItem("Load Street environment (FBX)", nullptr)) {
+            loadStreetAsset("Street environment_V01.FBX");
+        }
+        if (ImGui::MenuItem("Load street2 (FBX)", nullptr)) {
+            loadStreetAsset("street2.FBX");
+        }
+        if (ImGui::MenuItem("Load scene (DAE)", nullptr)) {
+            loadStreetAsset("scene.DAE");
+        }
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Window")) {
+        ImGui::MenuItem("Console", nullptr, &show_console_);
+        ImGui::MenuItem("ImGui Demo", nullptr, &show_demo_);
+        ImGui::MenuItem("About", nullptr, &show_about_);
+        ImGui::EndMenu();
+    }
+
+    ImGui::EndMainMenuBar();
 }
 
 void EditorWindows::drawConsole() {
     ImGui::SetNextWindowSize(ImVec2(600, 220), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Console", &show_console_)) { ImGui::End(); return; }
-    static ImGuiTextFilter filter;
+
     static bool auto_scroll = true;
-    filter.Draw("Filter");
+    ImGui::Checkbox("Auto-scroll / 自动滚动", &auto_scroll);
     ImGui::Separator();
-    ImGui::BeginChild("scroll_region", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-    auto logs = Logger::instance().snapshot();
-    for (auto& e : logs) {
-        if (!filter.PassFilter(e.text.c_str())) continue;
-        ImVec4 color = ImVec4(1, 1, 1, 1);
-        if (e.level == LogLevel::Warning) color = ImVec4(1, 1, 0, 1);
-        if (e.level == LogLevel::Error)   color = ImVec4(1, 0.5f, 0.5f, 1);
-        ImGui::PushStyleColor(ImGuiCol_Text, color);
-        ImGui::TextUnformatted(e.text.c_str());
-        ImGui::PopStyleColor();
+
+    ImGui::BeginChild("console_scroller", ImVec2(0, 0), false);
+    for (const auto& line : console_) {
+        ImGui::TextUnformatted(line.c_str());
     }
     if (auto_scroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
         ImGui::SetScrollHereY(1.0f);
     ImGui::EndChild();
-    ImGui::Checkbox("Auto-scroll", &auto_scroll);
-    ImGui::SameLine();
-    if (ImGui::Button("Clear")) {
-        Logger::instance().setMaxEntries(0);
-        Logger::instance().setMaxEntries(1000);
-    }
+
     ImGui::End();
 }
 
-void EditorWindows::drawConfig() {
-    ImGui::SetNextWindowSize(ImVec2(420, 380), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Config", &show_config_)) { ImGui::End(); return; }
-    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::PlotLines("Framerate", fps_history_, kFpsHistory, fps_index_, nullptr, 0.0f, 200.0f, ImVec2(-1, 80));
+void EditorWindows::drawAbout() {
+    ImGui::SetNextWindowSize(ImVec2(420, 160), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("About", &show_about_)) { ImGui::End(); return; }
+    ImGui::Text("MotorA2 - Editor");
     ImGui::Separator();
-    ImGui::Text("OpenGL : %s", (const char*)glGetString(GL_VERSION));
-    ImGui::Text("GPU    : %s", (const char*)glGetString(GL_RENDERER));
-    ImGui::Text("Vendor : %s", (const char*)glGetString(GL_VENDOR));
-    ImGui::Separator();
-    ImGui::Text("SDL CPU cores : %d", SDL_GetNumLogicalCPUCores());
-    ImGui::Text("SDL SystemRAM : %d MB", SDL_GetSystemRAM());
+    ImGui::Text("Controls / 操作:");
+    ImGui::BulletText("Left click select / 左键选择");
+    ImGui::BulletText("Hierarchy drag-drop / 层级拖拽（换父节点/排序）");
+    ImGui::BulletText("Use File menu to load Street / 用 File 菜单加载 Street");
     ImGui::End();
 }
 
-void EditorWindows::drawHierarchy() {
-    ImGui::SetNextWindowSize(ImVec2(260, 420), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Hierarchy", &show_hierarchy_)) { ImGui::End(); return; }
-    if (!scene_) { ImGui::TextDisabled("No scene."); ImGui::End(); return; }
-
-    if (ImGui::Button("Create Empty")) {
-        auto go = std::make_shared<GameObject>("Empty");
-        scene_->push_back(go);
-        if (selected_ && *selected_) {
-            GameObject* parent = selected_->get();
-            parent->addChild(go.get());
-            openNodes_.insert(parent);
-        }
-        setSelection(go);
-        pendingFocus_ = go.get();
-    }
-    ImGui::SameLine();
-
-    bool hasSel = selected_ && (*selected_);
-    ImGui::BeginDisabled(!hasSel);
-    if (ImGui::Button("Delete")) {
-        if (hasSel) {
-            pendingDelete_ = selected_->get();
-            if (!pendingDelete_->children.empty())
-                ImGui::OpenPopup("Confirm Delete");
-            else
-                deleteSelectedRecursive();
-        }
-    }
-    ImGui::EndDisabled();
-
-    ImGui::SameLine();
-    ImGui::Checkbox("Preserve World", &preserve_world_);
-
-    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
-            if (hasSel) {
-                pendingDelete_ = selected_->get();
-                if (!pendingDelete_->children.empty())
-                    ImGui::OpenPopup("Confirm Delete");
-                else
-                    deleteSelectedRecursive();
-            }
-        }
-    }
-
-    if (ImGui::BeginPopupModal("Confirm Delete", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        int total = 1;
-        if (pendingDelete_) {
-            std::vector<GameObject*> tmp;
-            collectPostorder(pendingDelete_, tmp);
-            total = (int)tmp.size();
-        }
-        ImGui::Text("Eliminar '%s' y %d hijos?",
-            pendingDelete_ ? pendingDelete_->name.c_str() : "<none>", total - 1);
-        if (ImGui::Button("Eliminar", ImVec2(120, 0))) { deleteSelectedRecursive(); ImGui::CloseCurrentPopup(); }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancelar", ImVec2(120, 0))) { pendingDelete_ = nullptr; ImGui::CloseCurrentPopup(); }
-        ImGui::EndPopup();
-    }
-
-    ImGui::Separator();
-
-    std::vector<GameObject*> roots;
-    roots.reserve(scene_->size());
-    for (auto& sp : *scene_) {
-        GameObject* go = sp.get();
-        if (go->parent == nullptr) roots.push_back(go);
-    }
-
-    ImGui::BeginChild("HierarchyTree", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-
-    for (auto* r : roots) drawHierarchyNode(r);
-
-    if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("GO_PTR")) {
-            GameObject* dragged = *(GameObject* const*)payload->Data;
-            if (dragged && dragged->parent) {
-                reparent(dragged, nullptr);
-                auto sp = findShared(dragged);
-                if (sp) setSelection(sp);
-            }
-        }
-        ImGui::EndDragDropTarget();
-    }
-
-    ImGui::EndChild();
-    ImGui::End();
-}
-
-void EditorWindows::drawHierarchyNode(GameObject* go) {
-    using namespace ImGui;
-
-    PushID((void*)((uintptr_t)go ^ 0xABCD));
-    ImVec2 avail = GetContentRegionAvail();
-    InvisibleButton("##drop-above", ImVec2(avail.x, 3.0f));
-    if (BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload = AcceptDragDropPayload("GO_PTR")) {
-            GameObject* dragged = *(GameObject* const*)payload->Data;
-            if (dragged && dragged != go) {
-                if (go->parent && dragged->parent == go->parent) {
-                    int idx = go->indexInParent();
-                    reorderSibling(dragged, go->parent, idx);
-                }
-                else if (!go->parent && !dragged->parent) {
-                    int newIndex = 0;
-                    if (scene_) {
-                        std::vector<GameObject*> roots;
-                        for (auto& sp : *scene_) if (sp->parent == nullptr) roots.push_back(sp.get());
-                        for (int i = 0; i < (int)roots.size(); ++i) if (roots[i] == go) { newIndex = i; break; }
-                    }
-                    reorderRoot(dragged, newIndex);
-                }
-                auto sp = findShared(dragged);
-                if (sp) setSelection(sp);
-            }
-        }
-        EndDragDropTarget();
-    }
-    PopID();
-
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
-        | ImGuiTreeNodeFlags_OpenOnDoubleClick
-        | ImGuiTreeNodeFlags_SpanFullWidth;
-    if (go->children.empty()) flags |= ImGuiTreeNodeFlags_Leaf;
-    bool isOpen = openNodes_.count(go) > 0;
-    SetNextItemOpen(isOpen, ImGuiCond_Always);
-    bool open = TreeNodeEx((void*)go, flags, "%s", go->name.c_str());
-
-    if (BeginPopupContextItem()) {
-        if (MenuItem("Create Empty")) {
-            auto child = std::make_shared<GameObject>("Empty");
-            if (scene_) scene_->push_back(child);
-            go->addChild(child.get());
-            openNodes_.insert(go);
-            setSelection(child);
-            pendingFocus_ = child.get();
-        }
-        EndPopup();
-    }
-
-    if (IsItemClicked()) {
-        if (scene_) {
-            auto sp = findShared(go);
-            if (sp) setSelection(sp);
-        }
-    }
-
-    if (BeginDragDropSource()) {
-        SetDragDropPayload("GO_PTR", &go, sizeof(GameObject*));
-        TextUnformatted(go->name.c_str());
-        EndDragDropSource();
-    }
-
-    if (BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload = AcceptDragDropPayload("GO_PTR")) {
-            GameObject* dragged = *(GameObject* const*)payload->Data;
-            if (dragged && dragged != go && !go->isDescendantOf(dragged)) {
-                reparent(dragged, go);
-                openNodes_.insert(go);
-                auto sp = findShared(dragged);
-                if (sp) setSelection(sp);
-            }
-        }
-        EndDragDropTarget();
-    }
-
-    if (open) openNodes_.insert(go); else openNodes_.erase(go);
-
-    if (open) {
-        for (auto* c : go->children) {
-            drawHierarchyNode(c);
-        }
-        TreePop();
-    }
-
-    PushID((void*)((uintptr_t)go ^ 0xBCDE));
-    InvisibleButton("##drop-below", ImVec2(avail.x, 3.0f));
-    if (BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload = AcceptDragDropPayload("GO_PTR")) {
-            GameObject* dragged = *(GameObject* const*)payload->Data;
-            if (dragged && dragged != go) {
-                if (go->parent && dragged->parent == go->parent) {
-                    int idx = go->indexInParent();
-                    reorderSibling(dragged, go->parent, idx + 1);
-                }
-                else if (!go->parent && !dragged->parent) {
-                    int newIndex = 0;
-                    if (scene_) {
-                        std::vector<GameObject*> roots;
-                        for (auto& sp : *scene_) if (sp->parent == nullptr) roots.push_back(sp.get());
-                        for (int i = 0; i < (int)roots.size(); ++i) if (roots[i] == go) { newIndex = i + 1; break; }
-                    }
-                    reorderRoot(dragged, newIndex);
-                }
-                auto sp = findShared(dragged);
-                if (sp) setSelection(sp);
-            }
-        }
-        EndDragDropTarget();
-    }
-    PopID();
-
-    if (pendingFocus_ == go) {
-        ImGui::SetScrollHereY(0.25f);
-        pendingFocus_ = nullptr;
-    }
-}
-
-
-void EditorWindows::ensureChecker() {
-    if (checker_tex_) return;
-    const int W = 128, H = 128; checker_w_ = W; checker_h_ = H;
-    std::vector<unsigned int> rgba(W * H, 0xffffffffu);
-    for (int y = 0; y < H; ++y)
-        for (int x = 0; x < W; ++x) {
-            bool blk = ((x / 8) + (y / 8)) % 2 == 0;
-            rgba[y * W + x] = blk ? 0xff202020u : 0xffffffffu;
-        }
-    glGenTextures(1, &checker_tex_);
-    glBindTexture(GL_TEXTURE_2D, checker_tex_);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-}
-
-
-void EditorWindows::drawInspector() {
-    ImGui::SetNextWindowSize(ImVec2(360, 520), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Inspector", &show_inspector_)) { ImGui::End(); return; }
-
-    // Sección GameObject (solo si hay selección)
-    if (selected_ && *selected_) {
-        auto go = *selected_;
-        ImGui::Text("Name: %s", go->name.c_str());
-        ImGui::Separator();
-        auto& T = go->transform;
-        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-            auto pos = T.pos();
-            float p[3] = { (float)pos.x, (float)pos.y, (float)pos.z };
-            if (ImGui::DragFloat3("Position", p, 0.1f)) T.setPosition({ p[0], p[1], p[2] });
-            ImGui::SameLine(); if (ImGui::Button("Reset##pos")) T.setPosition({ 0,0,0 });
-
-            static float rot[3] = { 0,0,0 };
-            static float last[3] = { 0,0,0 };
-            if (ImGui::DragFloat3("Rotation", rot, 0.2f)) {
-                float d[3] = { rot[0] - last[0], rot[1] - last[1], rot[2] - last[2] };
-                T.rotateEulerDeltaDeg({ d[0], d[1], d[2] });
-                memcpy(last, rot, sizeof(rot));
-            }
-            ImGui::SameLine(); if (ImGui::Button("Reset##rot")) { T.resetRotation(); memset(rot, 0, sizeof(rot)); memset(last, 0, sizeof(last)); }
-            auto sc = T.getScale();
-            float s[3] = { (float)sc.x, (float)sc.y, (float)sc.z };
-            if (ImGui::DragFloat3("Scale", s, 0.05f, 0.001f, 1000.0f)) T.setScale({ s[0], s[1], s[2] });
-            ImGui::SameLine(); if (ImGui::Button("Reset##scale")) T.resetScale();
-            auto L = T.left(), U = T.up(), F = T.fwd();
-        }
-        if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
-            if (go->mesh) {
-                ImGui::Text("Vertices: %zu", go->mesh->getVertexCount());
-                ImGui::Text("Triangles: %zu", go->mesh->getTriangleCount());
-                ImGui::Separator();
-                ImGui::Checkbox("Show Vertex Normals", &go->mesh->showVertexNormals);
-                ImGui::Checkbox("Show Face Normals", &go->mesh->showFaceNormals);
-                if (go->mesh->showVertexNormals || go->mesh->showFaceNormals) {
-                    float normalLen = (float)go->mesh->normalLength;
-                    if (ImGui::SliderFloat("Normal Length", &normalLen, 0.01f, 2.0f))
-                        go->mesh->normalLength = normalLen;
-                }
-            }
-            else ImGui::TextDisabled("No mesh attached.");
-        }
-        if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen)) {
-            unsigned int texID = go->getTextureID();
-            int tw = 0, th = 0; if (texID) glTextureSize(texID, tw, th);
-            ImGui::Text("Texture ID: %u", texID);
-            ImGui::Text("Size: %dx%d", tw, th);
-            ImGui::Separator();
-            ensureChecker();
-            ImGui::BeginDisabled(texID == checker_tex_);
-            if (ImGui::Button("Apply Checkerboard")) {
-                if (prev_tex_.find(go.get()) == prev_tex_.end())
-                    prev_tex_[go.get()] = texID;
-                go->setTexture(checker_tex_);
-                LOG_INFO("Applied checkerboard texture to " + go->name);
-            }
-            ImGui::EndDisabled();
-            ImGui::SameLine();
-            bool canRestore = prev_tex_.find(go.get()) != prev_tex_.end();
-            ImGui::BeginDisabled(!canRestore);
-            if (ImGui::Button("Restore Texture")) {
-                go->setTexture(prev_tex_[go.get()]);
-                prev_tex_.erase(go.get());
-                LOG_INFO("Restored original texture for " + go->name);
-            }
-            ImGui::EndDisabled();
-            if (texID != 0 && tw > 0 && th > 0) {
-                ImGui::Separator();
-                ImGui::Text("Preview:");
-                float previewSize = 200.0f;
-                float ar = (float)tw / (float)th;
-                ImVec2 size = ar > 1.0f ? ImVec2(previewSize, previewSize / ar) : ImVec2(previewSize * ar, previewSize);
-                ImGui::Image((ImTextureID)(intptr_t)texID, size);
-            }
-        }
-    }
-    else {
-        ImGui::TextDisabled("No GameObject selected.");
-    }
-
-    // ============================================================
-    // CAMERA SETTINGS (siempre visible al final del Inspector)
-    // ============================================================
-    ImGui::Separator();
-    ImGui::Separator();
-
-    if (ImGui::CollapsingHeader("Camera (Main Scene Camera)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (main_camera_) {
-            Camera* cam = main_camera_;
-
-            // FOV
-            const double PI = 3.14159265358979323846;
-            float fovDeg = (float)(cam->fov * 180.0 / PI);
-            if (ImGui::SliderFloat("FOV", &fovDeg, 30.0f, 120.0f)) {
-                cam->fov = (double)(fovDeg * PI / 180.0);
-            }
-
-            // Aspect Ratio
-            float aspect = (float)cam->aspect;
-            if (ImGui::DragFloat("Aspect Ratio", &aspect, 0.01f, 0.1f, 10.0f)) {
-                cam->aspect = (double)aspect;
-            }
-
-            // Near and Far planes
-            float zNear = (float)cam->zNear;
-            float zFar = (float)cam->zFar;
-            if (ImGui::DragFloat("Near Plane", &zNear, 0.01f, 0.01f, 100.0f)) {
-                cam->zNear = (double)zNear;
-            }
-            if (ImGui::DragFloat("Far Plane", &zFar, 1.0f, 1.0f, 1000.0f)) {
-                cam->zFar = (double)zFar;
-            }
-
-            ImGui::Separator();
-
-            // Movement settings
-            float moveSpeed = (float)cam->moveSpeed;
-            if (ImGui::DragFloat("Move Speed", &moveSpeed, 0.1f, 0.1f, 100.0f)) {
-                cam->moveSpeed = (double)moveSpeed;
-            }
-
-            float lookSens = (float)cam->lookSensitivity;
-            if (ImGui::DragFloat("Look Sensitivity", &lookSens, 0.0001f, 0.0001f, 0.1f, "%.4f")) {
-                cam->lookSensitivity = (double)lookSens;
-            }
-
-            float panSpeed = (float)cam->panSpeed;
-            if (ImGui::DragFloat("Pan Speed", &panSpeed, 0.0001f, 0.0001f, 0.1f, "%.4f")) {
-                cam->panSpeed = (double)panSpeed;
-            }
-
-            float zoomSpeed = (float)cam->zoomSpeed;
-            if (ImGui::DragFloat("Zoom Speed", &zoomSpeed, 0.1f, 0.1f, 10.0f)) {
-                cam->zoomSpeed = (double)zoomSpeed;
-            }
-        }
-        else {
-            ImGui::TextDisabled("Camera not initialized.");
-        }
-    }
-    ImGui::End();
-}
-
-
-std::string EditorWindows::getAssetsPath() {
-    auto cwd = fs::current_path();
-    auto try_find = [](fs::path start)->std::string {
-        fs::path p = start;
-        for (int i = 0; i < 6; ++i) {
-            fs::path c = p / "Assets";
-            if (fs::exists(c) && fs::is_directory(c))return c.string();
-            if (!p.has_parent_path())break;
-            p = p.parent_path();
-        }
-        return "";
-        };
-    if (auto s = try_find(cwd); !s.empty())return s;
-    const char* base = SDL_GetBasePath();
-    if (base)if (auto s = try_find(fs::path(base)); !s.empty())return s;
-    return "Assets";
-}
-
-void EditorWindows::loadPrimitiveFromAssets(const std::string& name) {
-    if (!scene_)return;
-    std::string assets = getAssetsPath();
-    fs::path p = fs::absolute(fs::path(assets) / "Primitives" / name);
-    auto meshes = ModelLoader::loadModel(p.string());
-    if (meshes.empty()) { LOG_ERROR("Failed to load primitive: " + p.string()); return; }
-    for (size_t i = 0; i < meshes.size(); ++i) {
-        auto go = std::make_shared<GameObject>(name + "_" + std::to_string(i));
-        go->setMesh(meshes[i]);
-        scene_->push_back(go);
-    }
-    LOG_INFO("Loaded primitive: " + p.string());
-}
-
-
-
-/*-------------------------------------------------------------------------------------------------------*/
-/*-------------------------------------------------------------------------------------------------------*/
-/*-------------------------------------------------------------------------------------------------------*/
 void EditorWindows::setSelection(const std::shared_ptr<GameObject>& go) {
-    if (!selected_) return;
-    if (*selected_) (*selected_)->isSelected = false;
-    *selected_ = go;
-    if (*selected_) (*selected_)->isSelected = true;
+    // Clear previous selection flag / 清除旧选择
+    if (selected_) selected_->isSelected = false;
+
+    selected_ = go;
+
+    if (selected_) selected_->isSelected = true;
+}
+
+std::shared_ptr<GameObject> EditorWindows::findShared(GameObject* raw) {
+    if (!scene_ || !raw) return nullptr;
+    for (auto& sp : *scene_) {
+        if (sp.get() == raw) return sp;
+    }
+    return nullptr;
 }
 
 void EditorWindows::collectPostorder(GameObject* root, std::vector<GameObject*>& out) {
     if (!root) return;
-    for (auto* c : root->children) collectPostorder(c, out);
+    // children is a vector<GameObject*> in your GameObject
+    // children 是 vector<GameObject*>（你的实现）
+    for (GameObject* c : root->children) collectPostorder(c, out);
     out.push_back(root);
-}
-
-std::shared_ptr<GameObject> EditorWindows::findShared(GameObject* raw) {
-    if (!scene_ || !raw) return {};
-    for (auto& sp : *scene_) if (sp.get() == raw) return sp;
-    return {};
 }
 
 void EditorWindows::removeFromScene(GameObject* raw) {
     if (!scene_ || !raw) return;
-    auto& v = *scene_;
-    for (auto it = v.begin(); it != v.end(); ++it) {
-        if (it->get() == raw) { v.erase(it); break; }
+
+    // Detach from parent / 从父节点断开
+    if (raw->parent) {
+        raw->parent->removeChild(raw);
     }
+
+    // Remove from ownership list / 从 scene_ 所有权列表移除 shared_ptr
+    scene_->erase(
+        std::remove_if(scene_->begin(), scene_->end(),
+            [raw](const std::shared_ptr<GameObject>& sp) {
+                return sp.get() == raw;
+            }),
+        scene_->end()
+    );
 }
 
 void EditorWindows::deleteSelectedRecursive() {
-    if (!selected_ || !(*selected_)) return;
-    GameObject* S = selected_->get();
-    *selected_ = nullptr;
+    if (!scene_ || !selected_) return;
 
+    // Postorder: children first / 后序：先子后父
     std::vector<GameObject*> post;
-    collectPostorder(S, post);
+    collectPostorder(selected_.get(), post);
 
-    for (auto* n : post) {
-        if (n->parent) n->parent->removeChild(n);
-    }
-    for (auto* n : post) {
-        openNodes_.erase(n);
+    // Clear selection early / 先清空选择，避免悬空
+    setSelection(nullptr);
+
+    // Remove every node / 逐个移除
+    for (GameObject* n : post) {
         removeFromScene(n);
     }
-    pendingDelete_ = nullptr;
+
+    log("Deleted selection subtree / 已删除选中子树");
 }
 
 void EditorWindows::reparent(GameObject* dragged, GameObject* target) {
-    if (!dragged || dragged == target) return;
-    if (target && (target == dragged || target->isDescendantOf(dragged))) return;
+    if (!dragged || !target) return;
+    if (dragged == target) return;
 
-    mat4 M_old(1.0);
-    if (preserve_world_) M_old = computeWorldMatrix(dragged);
+    // Prevent cycles / 防止环
+    if (target->isDescendantOf(dragged)) return;
 
+    // Preserve world matrix / 保持世界矩阵
+    mat4 M_world = computeWorldMatrix(dragged);
+
+    // Detach from old parent if any / 从旧父断开
     if (dragged->parent) dragged->parent->removeChild(dragged);
 
-    if (target) target->addChild(dragged);
-    else dragged->parent = nullptr;
+    // Attach to new parent / 挂到新父
+    target->addChild(dragged);
 
-    if (preserve_world_) {
-        setLocalFromWorld(dragged, M_old, target);
-    }
+    // Recompute local from world (new parent) / 用世界矩阵反推本地矩阵
+    setLocalFromWorld(dragged, M_world, target);
 }
 
 void EditorWindows::reorderSibling(GameObject* node, GameObject* parent, int newIndex) {
     if (!node || !parent) return;
     auto& v = parent->children;
-    int cur = node->indexInParent();
+
+    // Find current index / 找到当前下标
+    int cur = -1;
+    for (int i = 0; i < (int)v.size(); ++i) {
+        if (v[i] == node) { cur = i; break; }
+    }
     if (cur < 0) return;
-    if (newIndex > (int)v.size()) newIndex = (int)v.size();
-    if (newIndex < 0) newIndex = 0;
-    if (newIndex == cur || newIndex == cur + 1) return;
-    auto it = std::find(v.begin(), v.end(), node);
-    if (it == v.end()) return;
-    v.erase(it);
-    if (newIndex > cur) newIndex -= 1;
-    v.insert(v.begin() + newIndex, node);
+
+    // Clamp newIndex / 夹紧范围
+    newIndex = std::max(0, std::min(newIndex, (int)v.size() - 1));
+    if (newIndex == cur) return;
+
+    // Move element / 移动元素
+    GameObject* tmp = v[cur];
+    v.erase(v.begin() + cur);
+    v.insert(v.begin() + newIndex, tmp);
 }
 
 void EditorWindows::reorderRoot(GameObject* node, int newIndex) {
-    if (!scene_ || !node || node->parent) return;
-    std::vector<int> rootSceneIdx;
-    std::vector<std::shared_ptr<GameObject>> rootSPs;
-    for (int i = 0; i < (int)scene_->size(); ++i) {
-        if ((*scene_)[i]->parent == nullptr) {
-            rootSceneIdx.push_back(i);
-            rootSPs.push_back((*scene_)[i]);
-        }
-    }
-    int curRootIdx = -1;
-    for (int i = 0; i < (int)rootSPs.size(); ++i) if (rootSPs[i].get() == node) { curRootIdx = i; break; }
-    if (curRootIdx < 0) return;
+    if (!scene_ || !node) return;
 
-    if (newIndex < 0) newIndex = 0;
-    if (newIndex > (int)rootSPs.size()) newIndex = (int)rootSPs.size();
-    auto spNode = rootSPs[curRootIdx];
-    int sceneIdx = rootSceneIdx[curRootIdx];
-    (*scene_).erase((*scene_).begin() + sceneIdx);
-
-    rootSceneIdx.clear(); rootSPs.clear();
+    // Find shared_ptr / 找 shared_ptr
+    int cur = -1;
     for (int i = 0; i < (int)scene_->size(); ++i) {
-        if ((*scene_)[i]->parent == nullptr) {
-            rootSceneIdx.push_back(i);
-            rootSPs.push_back((*scene_)[i]);
-        }
+        if ((*scene_)[i].get() == node) { cur = i; break; }
     }
-    int destSceneIdx;
-    if (newIndex >= (int)rootSPs.size()) {
-        destSceneIdx = rootSceneIdx.empty() ? (int)scene_->size() : (rootSceneIdx.back() + 1);
+    if (cur < 0) return;
+
+    newIndex = std::max(0, std::min(newIndex, (int)scene_->size() - 1));
+    if (newIndex == cur) return;
+
+    auto tmp = (*scene_)[cur];
+    scene_->erase(scene_->begin() + cur);
+    scene_->insert(scene_->begin() + newIndex, tmp);
+}
+
+void EditorWindows::drawHierarchyNode(GameObject* node) {
+    if (!node) return;
+
+    ImGuiTreeNodeFlags flags =
+        ImGuiTreeNodeFlags_OpenOnArrow |
+        ImGuiTreeNodeFlags_SpanFullWidth;
+
+    // If selected / 如果选中
+    if (selected_ && selected_.get() == node)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    bool hasChildren = !node->children.empty();
+    if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf;
+
+    bool open = ImGui::TreeNodeEx((void*)node, flags, "%s", node->name.c_str());
+
+    // Click to select / 点击选择
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+        setSelection(findShared(node));
+    }
+
+    // Drag source / 拖拽源
+    if (ImGui::BeginDragDropSource()) {
+        ImGui::SetDragDropPayload("DND_GAMEOBJECT", &node, sizeof(GameObject*));
+        ImGui::Text("Move: %s", node->name.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // Drop target / 拖拽目标
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_GAMEOBJECT")) {
+            GameObject* dragged = *(GameObject**)payload->Data;
+            if (dragged) {
+                // If dropped on node: reparent under node
+                // 拖到某节点上：作为它的子节点
+                reparent(dragged, node);
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    // Children / 子节点
+    if (open) {
+        for (GameObject* c : node->children) {
+            drawHierarchyNode(c);
+        }
+        ImGui::TreePop();
+    }
+}
+
+void EditorWindows::drawHierarchy() {
+    ImGui::SetNextWindowSize(ImVec2(300, 600), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Hierarchy")) { ImGui::End(); return; }
+
+    if (!scene_) {
+        ImGui::TextUnformatted("Scene is null / scene_ 为空");
+        ImGui::End();
+        return;
+    }
+
+    // Buttons / 按钮
+    if (ImGui::Button("Delete Selected / 删除选中")) {
+        deleteSelectedRecursive();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load Street / 加载 Street")) {
+        loadStreetAsset("Street environment_V01.FBX");
+    }
+
+    ImGui::Separator();
+
+    // Draw root objects / 绘制根对象
+    for (auto& sp : *scene_) {
+        // root objects only (parent == nullptr)
+        // 只画根对象（parent == nullptr）
+        if (!sp) continue;
+        if (sp->parent != nullptr) continue;
+        drawHierarchyNode(sp.get());
+    }
+
+    ImGui::End();
+}
+
+void EditorWindows::drawInspector(Camera* camera) {
+    ImGui::SetNextWindowSize(ImVec2(380, 600), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Inspector")) { ImGui::End(); return; }
+
+    if (!selected_) {
+        ImGui::TextUnformatted("No selection / 未选中对象");
+        ImGui::End();
+        return;
+    }
+
+    GameObject* go = selected_.get();
+    ImGui::Text("Name / 名称:");
+    char buf[256];
+    std::snprintf(buf, sizeof(buf), "%s", go->name.c_str());
+    if (ImGui::InputText("##name", buf, sizeof(buf))) {
+        go->name = buf;
+    }
+
+    ImGui::Separator();
+
+    // Transform editing / Transform 编辑
+    // 你的 Transform 不是 position/rotation/scale 三字段，而是 mat4 + pos()/setScale()/rotateEulerDeltaDeg()
+    // Your Transform stores mat4 and helper APIs
+
+    vec3 p = go->transform.pos();
+    float pf[3] = { (float)p.x, (float)p.y, (float)p.z };
+    if (ImGui::DragFloat3("Position / 位置", pf, 0.05f)) {
+        go->transform.setPosition(vec3(pf[0], pf[1], pf[2]));
+    }
+
+    vec3 s = go->transform.getScale();
+    float sf[3] = { (float)s.x, (float)s.y, (float)s.z };
+    if (ImGui::DragFloat3("Scale / 缩放", sf, 0.02f, 0.001f, 1000.0f)) {
+        go->transform.setScale(vec3(sf[0], sf[1], sf[2]));
+    }
+    if (ImGui::Button("Reset Scale / 重置缩放")) {
+        go->transform.resetScale();
+    }
+
+    // Rotation (apply delta euler) / 旋转（增量欧拉角）
+    static float rotDelta[3] = { 0,0,0 };
+    ImGui::DragFloat3("Rotate Delta (deg) / 旋转增量(度)", rotDelta, 0.5f);
+    if (ImGui::Button("Apply Rotation / 应用旋转")) {
+        go->transform.rotateEulerDeltaDeg(vec3(rotDelta[0], rotDelta[1], rotDelta[2]));
+        rotDelta[0] = rotDelta[1] = rotDelta[2] = 0.0f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reset Rotation / 重置旋转")) {
+        go->transform.resetRotation();
+    }
+
+    ImGui::Separator();
+
+    // Mesh info / Mesh 信息
+    if (go->mesh) {
+        ImGui::Text("Mesh / 网格: OK");
+        ImGui::Text("Vertices / 顶点: %d", (int)go->mesh->getVertexCount());
+        ImGui::Text("Triangles / 三角形: %d", (int)go->mesh->getTriangleCount());
+
+        unsigned int tex = go->getTextureID();
+        ImGui::Text("TextureID / 纹理ID: %u", tex);
+
+        if (tex) {
+            int tw, th;
+            glTextureSize((GLuint)tex, tw, th);
+            ImGui::Text("Texture size / 纹理尺寸: %dx%d", tw, th);
+        }
     }
     else {
-        destSceneIdx = rootSceneIdx[newIndex];
+        ImGui::Text("Mesh / 网格: (null)");
     }
-    (*scene_).insert((*scene_).begin() + destSceneIdx, spNode);
+
+    ImGui::End();
 }
