@@ -1,4 +1,6 @@
 ﻿#include <functional>
+#include <imgui.h>
+
 // main.cpp
 // 中英双语注释 / Chinese-English bilingual comments
 //
@@ -131,6 +133,9 @@ int main(int argc, char** argv)
     // Chinese: 初始 aspect 用窗口比例；后面窗口 resize 时也会更新
     // English: set initial aspect; update again on resize
     mainCam.aspect = 1280.0f / 720.0f;
+    mainCam.transform.setPosition(vec3(0.0, 1.5, 8.0));  // 先拉远一点
+    mainCam.focusOn(vec3(0.0), 5.0);                     // 给一个默认 orbit 距离
+
 
     // 8) Init EditorWindows / 初始化编辑器窗口系统
     //EditorWindows editor;
@@ -181,16 +186,74 @@ int main(int argc, char** argv)
     EditorWindows editor;
     editor.setScene(&scene);
     editor.init(window, glctx);
+    uint64_t prevCounter = SDL_GetPerformanceCounter();
+    double perfFreq = (double)SDL_GetPerformanceFrequency();
 
     bool running = true;
     while (running)
     
 
     {
+        uint64_t nowCounter = SDL_GetPerformanceCounter();
+        double dt = (double)(nowCounter - prevCounter) / perfFreq;
+        prevCounter = nowCounter;
+
+        mainCam.update(dt);
+
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
             editor.processEvent(e);
+            ImGuiIO& io = ImGui::GetIO();
+
+            switch (e.type)
+            {
+            case SDL_EVENT_QUIT:
+                running = false;
+                break;
+
+            case SDL_EVENT_WINDOW_RESIZED:
+            {
+                int w = 0, h = 0;
+                SDL_GetWindowSizeInPixels(window, &w, &h);
+                if (h > 0) mainCam.aspect = (double)w / (double)h;
+                glViewport(0, 0, w, h);
+                break;
+            }
+
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                if (!io.WantCaptureMouse)
+                    mainCam.onMouseButton(e.button.button, 1, (int)e.button.x, (int)e.button.y);
+                break;
+
+            case SDL_EVENT_MOUSE_BUTTON_UP:
+                if (!io.WantCaptureMouse)
+                    mainCam.onMouseButton(e.button.button, 0, (int)e.button.x, (int)e.button.y);
+                break;
+
+            case SDL_EVENT_MOUSE_MOTION:
+                if (!io.WantCaptureMouse)
+                    mainCam.onMouseMove((int)e.motion.x, (int)e.motion.y);
+                break;
+
+            case SDL_EVENT_MOUSE_WHEEL:
+                if (!io.WantCaptureMouse)
+                    mainCam.onMouseWheel((int)e.wheel.y); // y: +上滚 / -下滚
+                break;
+
+            case SDL_EVENT_KEY_DOWN:
+                if (!io.WantCaptureKeyboard)
+                    mainCam.onKeyDown(e.key.scancode);
+                break;
+
+            case SDL_EVENT_KEY_UP:
+                if (!io.WantCaptureKeyboard)
+                    mainCam.onKeyUp(e.key.scancode);
+                break;
+
+            default:
+                break;
+            }
 
             if (e.type == SDL_EVENT_QUIT)
                 running = false;
