@@ -1,4 +1,5 @@
-﻿// main.cpp
+﻿#include <functional>
+// main.cpp
 // 中英双语注释 / Chinese-English bilingual comments
 //
 // 目标 / Goal
@@ -16,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <glm/gtc/type_ptr.hpp>   // 为 glm::value_ptr 提供声明
 
 // Project headers / 项目头文件
 #include "Editor/EditorWindows.h"
@@ -186,23 +188,75 @@ int main(int argc, char** argv)
                 running = false;
         }
 
-        // ✅ 1) 先开始 ImGui 新的一帧（必须每帧一次）
+        //// ✅ 1) 先开始 ImGui 新的一帧（必须每帧一次）
+        //editor.newFrame();
+        //int w = 0, h = 0;
+        //SDL_GetWindowSizeInPixels(window, &w, &h);   // SDL3 正确拿像素尺寸
+        //// ✅ 2) 渲染你的世界（可选：先画3D再画UI，或反过来都行）
+        //glViewport(0, 0, w, h);
+        //glEnable(GL_DEPTH_TEST);
+        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        //// draw scene...
+        //// for(auto& go : scene) go->draw(camera);  // 你的项目具体怎么画按你现在的写法
+
+        //// ✅ 3) 最后渲染 UI（里面会 ImGui::Render）
+        //editor.render(&mainCam);
+
+        //// ✅ 4) swap
+        //SDL_GL_SwapWindow(window);
+        // ✅ 1) 每帧开始 ImGui
         editor.newFrame();
+
+        // ✅ 2) 拿到窗口像素尺寸 -> viewport
         int w = 0, h = 0;
-        SDL_GetWindowSizeInPixels(window, &w, &h);   // SDL3 正确拿像素尺寸
-        // ✅ 2) 渲染你的世界（可选：先画3D再画UI，或反过来都行）
+        SDL_GetWindowSizeInPixels(window, &w, &h);
         glViewport(0, 0, w, h);
+
+        // ✅ 3) 清屏 + 深度
         glEnable(GL_DEPTH_TEST);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // draw scene...
-        // for(auto& go : scene) go->draw(camera);  // 你的项目具体怎么画按你现在的写法
+        // ✅ 4) 固定管线：把 Camera 的投影/视图矩阵加载进 OpenGL
+        // （因为你的 GameObject::draw() 用的是 glPushMatrix/glMultMatrixd，必须走 fixed pipeline）
+        {
+            mainCam.aspect = (h > 0) ? (double)w / (double)h : mainCam.aspect;
 
-        // ✅ 3) 最后渲染 UI（里面会 ImGui::Render）
+            mat4 P = mainCam.projection();
+            mat4 V = mainCam.view();
+
+            glMatrixMode(GL_PROJECTION);
+            glLoadMatrixd(glm::value_ptr(P));
+
+            glMatrixMode(GL_MODELVIEW);
+            glLoadMatrixd(glm::value_ptr(V));
+        }
+
+        // ✅ 5) 画场景（递归画 root + children）
+        if (!scene.empty())
+        {
+            std::function<void(GameObject*)> drawNode = [&](GameObject* n)
+                {
+                    if (!n) return;
+                    n->draw();
+                    for (auto* c : n->children) drawNode(c);
+                };
+
+            for (auto& sp : scene)
+            {
+                if (!sp) continue;
+                if (sp->parent != nullptr) continue;   // 只从 root 开始递归
+                drawNode(sp.get());
+            }
+        }
+
+        // ✅ 6) 最后画 UI
         editor.render(&mainCam);
 
-        // ✅ 4) swap
+        // ✅ 7) swap
         SDL_GL_SwapWindow(window);
+
     }
 
 
