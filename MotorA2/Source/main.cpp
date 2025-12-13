@@ -6,10 +6,11 @@
 // 2) 初始化 GLEW 以使用 OpenGL 函数 / Init GLEW for OpenGL function loading
 // 3) 启动 ImGui + 编辑器窗口系统 / Start ImGui + editor windows
 // 4) 进入主循环：事件 -> UI/场景渲染 / Main loop: events -> UI/scene render
+#define SDL_MAIN_HANDLED
 
-#define SDL_MAIN_HANDLED // 我们自己提供 main() / We provide our own main()
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>   // ✅ 加这一行，保证 SDL_SetMainReady 声明可见
 #include <GL/glew.h> // OpenGL function loader / OpenGL 函数加载器
 
 #include <iostream>
@@ -53,18 +54,27 @@ int main(int argc, char** argv)
     (void)argc; (void)argv;
 
     PrintRuntimeInfo();
-
+    SDL_SetMainReady();
     // 1) Init SDL / 初始化 SDL
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    //if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    //{
+    //    std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
+    //    return 1;
+    //}
+    if (!SDL_Init(SDL_INIT_VIDEO))
     {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
         return 1;
     }
 
     // 2) Request OpenGL 3.3 Core / 请求 OpenGL 3.3 Core
+    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
@@ -128,42 +138,73 @@ int main(int argc, char** argv)
 
     // 9) Main loop / 主循环
     bool running = true;
+    //while (running && !editor.wantsQuit())
+    //{
+    //    SDL_Event e;
+    //    while (SDL_PollEvent(&e))
+    //    {
+    //        // 先喂给编辑器（里面会喂给 ImGui） / Feed editor first (it forwards to ImGui)
+    //        editor.processEvent(e);
+
+    //        // 如果是窗口关闭事件 / If window close event
+    //        if (e.type == SDL_EVENT_QUIT)
+    //            running = false;
+
+    //        // 窗口尺寸变化：更新 viewport + 相机 aspect
+    //        // Window resized: update viewport + camera aspect
+    //        if (e.type == SDL_EVENT_WINDOW_RESIZED)
+    //        {
+    //            int w = 0, h = 0;
+    //            SDL_GetWindowSize(window, &w, &h);
+    //            if (h > 0)
+    //                mainCam.aspect = float(w) / float(h);
+
+    //            glViewport(0, 0, w, h);
+    //        }
+    //    }
+   
+
+    //    // 清屏 / Clear
+    //    glEnable(GL_DEPTH_TEST);
+    //    glClearColor(0.12f, 0.12f, 0.13f, 1.0f);
+    //    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    //    // 渲染编辑器 UI + 场景 / Render editor UI + scene
+    //    editor.render(mainCam);
+
+    //    // Swap / 交换缓冲
+    //    SDL_GL_SwapWindow(window);
+    //}
     while (running && !editor.wantsQuit())
     {
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
-            // 先喂给编辑器（里面会喂给 ImGui） / Feed editor first (it forwards to ImGui)
             editor.processEvent(e);
 
-            // 如果是窗口关闭事件 / If window close event
             if (e.type == SDL_EVENT_QUIT)
                 running = false;
-
-            // 窗口尺寸变化：更新 viewport + 相机 aspect
-            // Window resized: update viewport + camera aspect
-            if (e.type == SDL_EVENT_WINDOW_RESIZED)
-            {
-                int w = 0, h = 0;
-                SDL_GetWindowSize(window, &w, &h);
-                if (h > 0)
-                    mainCam.aspect = float(w) / float(h);
-
-                glViewport(0, 0, w, h);
-            }
         }
 
-        // 清屏 / Clear
+        // ✅ 1) 先开始 ImGui 新的一帧（必须每帧一次）
+        editor.newFrame();
+        int w = 0, h = 0;
+        SDL_GetWindowSizeInPixels(window, &w, &h);   // SDL3 正确拿像素尺寸
+        // ✅ 2) 渲染你的世界（可选：先画3D再画UI，或反过来都行）
+        glViewport(0, 0, w, h);
         glEnable(GL_DEPTH_TEST);
-        glClearColor(0.12f, 0.12f, 0.13f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // 渲染编辑器 UI + 场景 / Render editor UI + scene
-        editor.render(mainCam);
+        // draw scene...
+        // for(auto& go : scene) go->draw(camera);  // 你的项目具体怎么画按你现在的写法
 
-        // Swap / 交换缓冲
+        // ✅ 3) 最后渲染 UI（里面会 ImGui::Render）
+        editor.render(&mainCam);
+
+        // ✅ 4) swap
         SDL_GL_SwapWindow(window);
     }
+
 
     // 10) Shutdown / 关闭
     editor.shutdown();

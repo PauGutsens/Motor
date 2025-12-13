@@ -40,7 +40,9 @@ void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
     ImGui::StyleColorsDark();
 
     ImGui_ImplSDL3_InitForOpenGL(window_, gl_);
-    ImGui_ImplOpenGL3_Init("#version 330");
+  /*  ImGui_ImplOpenGL3_Init("#version 330");*/
+    ImGui_ImplOpenGL3_Init("#version 130");
+
 
     log("Editor initialized / 编辑器初始化完成");
 }
