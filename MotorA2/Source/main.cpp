@@ -27,13 +27,25 @@ SDL_Window* window = nullptr;
 
 // 小工具：打印运行信息（可选）
 // Helper: print runtime info (optional)
+//static void PrintRuntimeInfo()
+//{
+//    // Chinese: SDL3 用 SDL_GetVersion 输出版本号
+//    // English: SDL3 uses SDL_GetVersion for version numbers
+//    int major = 0, minor = 0, patch = 0;
+//    SDL_GetVersion(&major, &minor, &patch);
+//    std::cout << "SDL version: " << major << "." << minor << "." << patch << "\n";
+//}
 static void PrintRuntimeInfo()
 {
-    // Chinese: SDL3 用 SDL_GetVersion 输出版本号
-    // English: SDL3 uses SDL_GetVersion for version numbers
-    int major = 0, minor = 0, patch = 0;
-    SDL_GetVersion(&major, &minor, &patch);
-    std::cout << "SDL version: " << major << "." << minor << "." << patch << "\n";
+    //int major = 0, minor = 0, patch = 0;
+
+    //// SDL3: SDL_GetVersion() returns SDL_Version
+    //SDL_Version v = SDL_GetVersion();
+    //major = (int)v.major;
+    //minor = (int)v.minor;
+    //patch = (int)v.patch;
+
+    //std::cout << "SDL version: " << major << "." << minor << "." << patch << "\n";
 }
 
 int main(int argc, char** argv)

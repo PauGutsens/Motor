@@ -8,8 +8,7 @@
 #include <imgui_impl_opengl3.h>
 
 #include <SDL3/SDL.h>
-//#include <SDL3/SDL_opengl.h>
-#include <GL/glew.h> // Must be included before any OpenGL headers / 必须在任何 OpenGL 头文件之前
+#include <GL/glew.h>
 
 #include <filesystem>
 #include <algorithm>
@@ -21,7 +20,6 @@
 namespace fs = std::filesystem;
 
 static void glTextureSize(GLuint tex, int& w, int& h) {
-    // Query texture size / 查询纹理尺寸
     w = h = 0;
     if (!tex) return;
     glBindTexture(GL_TEXTURE_2D, tex);
@@ -38,13 +36,9 @@ void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-    // 你可以按需要打开键盘导航等
-    // Enable keyboard navigation if you want
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
     ImGui::StyleColorsDark();
 
-    // SDL3 + OpenGL3 backend
     ImGui_ImplSDL3_InitForOpenGL(window_, gl_);
     ImGui_ImplOpenGL3_Init("#version 330");
 
@@ -52,7 +46,6 @@ void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
 }
 
 void EditorWindows::shutdown() {
-    // Destroy ImGui backends / 释放 ImGui
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
@@ -61,22 +54,25 @@ void EditorWindows::shutdown() {
     gl_ = nullptr;
     scene_ = nullptr;
     selected_.reset();
+    selectedRef_ = nullptr;
+    mainCam_ = nullptr;
+    quit_ = false;
 }
 
 void EditorWindows::processEvent(const SDL_Event& e) {
-    // Feed SDL events to ImGui / 把 SDL 事件交给 ImGui
     ImGui_ImplSDL3_ProcessEvent(&e);
+    if (e.type == SDL_EVENT_QUIT) {
+        quit_ = true;
+    }
 }
 
 void EditorWindows::newFrame() {
-    // Start new ImGui frame / 开始新一帧
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 }
 
 void EditorWindows::render(Camera* camera) {
-    // Main UI / 主界面
     drawMainMenuBar();
 
     if (show_demo_) ImGui::ShowDemoWindow(&show_demo_);
@@ -86,7 +82,6 @@ void EditorWindows::render(Camera* camera) {
     drawInspector(camera);
     if (show_console_) drawConsole();
 
-    // Render ImGui / 渲染 ImGui
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
@@ -95,18 +90,30 @@ void EditorWindows::setScene(std::vector<std::shared_ptr<GameObject>>* scene) {
     scene_ = scene;
 }
 
+void EditorWindows::setScene(std::vector<std::shared_ptr<GameObject>>* scene, std::shared_ptr<GameObject>& selected) {
+    scene_ = scene;
+    selectedRef_ = &selected;
+
+    selected_ = selected;
+    if (selected_) selected_->isSelected = true;
+}
+
+void EditorWindows::setMainCamera(Camera* cam) {
+    mainCam_ = cam;
+}
+
+bool EditorWindows::wantsQuit() const {
+    return quit_;
+}
+
 void EditorWindows::log(const std::string& s) {
     console_.push_back(s);
-    Logger::Log(s.c_str());
+    // ✅ 修复：Logger 没有静态 Log()，用 instance().log()
+    Logger::instance().log(LogLevel::Info, s);
 }
 
 std::string EditorWindows::getAssetsPath() {
-    // Default: <project>/Assets
-    // 默认：工程根目录下的 Assets
-    // 这里用当前工作目录推断：通常 VS/CMake 调试时工作目录是 build/.../Debug
-    // We infer by current_path()
     fs::path cwd = fs::current_path();
-    // Try to find "Assets" in parents / 向上找 Assets
     for (int i = 0; i < 6; ++i) {
         fs::path candidate = cwd / "Assets";
         if (fs::exists(candidate) && fs::is_directory(candidate)) {
@@ -115,7 +122,6 @@ std::string EditorWindows::getAssetsPath() {
         cwd = cwd.parent_path();
         if (cwd.empty()) break;
     }
-    // Fallback / 兜底：直接用 ./Assets
     return (fs::current_path() / "Assets").string();
 }
 
@@ -125,16 +131,15 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
         return;
     }
 
-    // Assets/Street/<filename>
     fs::path p = fs::path(getAssetsPath()) / "Street" / filename;
     if (!fs::exists(p)) {
         log(std::string("Asset not found / 找不到资源: ") + p.string());
         return;
     }
 
-    // Use your ModelLoader to load mesh
-    // 使用你的 ModelLoader 加载 Mesh
-    std::shared_ptr<Mesh> mesh = ModelLoader::LoadModel(p.string());
+    // ✅ 修复：ModelLoader 只有 loadModel()，并且返回 vector<shared_ptr<Mesh>>
+    auto meshes = ModelLoader::loadModel(p.string());
+    std::shared_ptr<Mesh> mesh = meshes.empty() ? nullptr : meshes.front();
     if (!mesh) {
         log(std::string("Failed to load model / 加载失败: ") + p.string());
         return;
@@ -143,12 +148,9 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
     auto go = std::make_shared<GameObject>(p.stem().string());
     go->setMesh(mesh);
 
-    // Root object: parent=null, children empty
-    // 根对象：parent=null，children 空
     go->parent = nullptr;
     go->children.clear();
 
-    // Put into scene ownership list / 放进 scene_ 的所有权列表
     scene_->push_back(go);
     setSelection(go);
 
@@ -159,8 +161,6 @@ void EditorWindows::drawMainMenuBar() {
     if (!ImGui::BeginMainMenuBar()) return;
 
     if (ImGui::BeginMenu("File")) {
-        // 你老师让用 Street：给两个常用入口
-        // Street pack shortcuts
         if (ImGui::MenuItem("Load Street environment (FBX)", nullptr)) {
             loadStreetAsset("Street environment_V01.FBX");
         }
@@ -215,10 +215,10 @@ void EditorWindows::drawAbout() {
 }
 
 void EditorWindows::setSelection(const std::shared_ptr<GameObject>& go) {
-    // Clear previous selection flag / 清除旧选择
     if (selected_) selected_->isSelected = false;
 
     selected_ = go;
+    if (selectedRef_) *selectedRef_ = selected_;
 
     if (selected_) selected_->isSelected = true;
 }
@@ -233,8 +233,6 @@ std::shared_ptr<GameObject> EditorWindows::findShared(GameObject* raw) {
 
 void EditorWindows::collectPostorder(GameObject* root, std::vector<GameObject*>& out) {
     if (!root) return;
-    // children is a vector<GameObject*> in your GameObject
-    // children 是 vector<GameObject*>（你的实现）
     for (GameObject* c : root->children) collectPostorder(c, out);
     out.push_back(root);
 }
@@ -242,12 +240,10 @@ void EditorWindows::collectPostorder(GameObject* root, std::vector<GameObject*>&
 void EditorWindows::removeFromScene(GameObject* raw) {
     if (!scene_ || !raw) return;
 
-    // Detach from parent / 从父节点断开
     if (raw->parent) {
         raw->parent->removeChild(raw);
     }
 
-    // Remove from ownership list / 从 scene_ 所有权列表移除 shared_ptr
     scene_->erase(
         std::remove_if(scene_->begin(), scene_->end(),
             [raw](const std::shared_ptr<GameObject>& sp) {
@@ -260,14 +256,11 @@ void EditorWindows::removeFromScene(GameObject* raw) {
 void EditorWindows::deleteSelectedRecursive() {
     if (!scene_ || !selected_) return;
 
-    // Postorder: children first / 后序：先子后父
     std::vector<GameObject*> post;
     collectPostorder(selected_.get(), post);
 
-    // Clear selection early / 先清空选择，避免悬空
     setSelection(nullptr);
 
-    // Remove every node / 逐个移除
     for (GameObject* n : post) {
         removeFromScene(n);
     }
@@ -279,19 +272,13 @@ void EditorWindows::reparent(GameObject* dragged, GameObject* target) {
     if (!dragged || !target) return;
     if (dragged == target) return;
 
-    // Prevent cycles / 防止环
     if (target->isDescendantOf(dragged)) return;
 
-    // Preserve world matrix / 保持世界矩阵
     mat4 M_world = computeWorldMatrix(dragged);
 
-    // Detach from old parent if any / 从旧父断开
     if (dragged->parent) dragged->parent->removeChild(dragged);
-
-    // Attach to new parent / 挂到新父
     target->addChild(dragged);
 
-    // Recompute local from world (new parent) / 用世界矩阵反推本地矩阵
     setLocalFromWorld(dragged, M_world, target);
 }
 
@@ -299,18 +286,15 @@ void EditorWindows::reorderSibling(GameObject* node, GameObject* parent, int new
     if (!node || !parent) return;
     auto& v = parent->children;
 
-    // Find current index / 找到当前下标
     int cur = -1;
     for (int i = 0; i < (int)v.size(); ++i) {
         if (v[i] == node) { cur = i; break; }
     }
     if (cur < 0) return;
 
-    // Clamp newIndex / 夹紧范围
     newIndex = std::max(0, std::min(newIndex, (int)v.size() - 1));
     if (newIndex == cur) return;
 
-    // Move element / 移动元素
     GameObject* tmp = v[cur];
     v.erase(v.begin() + cur);
     v.insert(v.begin() + newIndex, tmp);
@@ -319,7 +303,6 @@ void EditorWindows::reorderSibling(GameObject* node, GameObject* parent, int new
 void EditorWindows::reorderRoot(GameObject* node, int newIndex) {
     if (!scene_ || !node) return;
 
-    // Find shared_ptr / 找 shared_ptr
     int cur = -1;
     for (int i = 0; i < (int)scene_->size(); ++i) {
         if ((*scene_)[i].get() == node) { cur = i; break; }
@@ -341,7 +324,6 @@ void EditorWindows::drawHierarchyNode(GameObject* node) {
         ImGuiTreeNodeFlags_OpenOnArrow |
         ImGuiTreeNodeFlags_SpanFullWidth;
 
-    // If selected / 如果选中
     if (selected_ && selected_.get() == node)
         flags |= ImGuiTreeNodeFlags_Selected;
 
@@ -350,32 +332,26 @@ void EditorWindows::drawHierarchyNode(GameObject* node) {
 
     bool open = ImGui::TreeNodeEx((void*)node, flags, "%s", node->name.c_str());
 
-    // Click to select / 点击选择
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
         setSelection(findShared(node));
     }
 
-    // Drag source / 拖拽源
     if (ImGui::BeginDragDropSource()) {
         ImGui::SetDragDropPayload("DND_GAMEOBJECT", &node, sizeof(GameObject*));
         ImGui::Text("Move: %s", node->name.c_str());
         ImGui::EndDragDropSource();
     }
 
-    // Drop target / 拖拽目标
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_GAMEOBJECT")) {
             GameObject* dragged = *(GameObject**)payload->Data;
             if (dragged) {
-                // If dropped on node: reparent under node
-                // 拖到某节点上：作为它的子节点
                 reparent(dragged, node);
             }
         }
         ImGui::EndDragDropTarget();
     }
 
-    // Children / 子节点
     if (open) {
         for (GameObject* c : node->children) {
             drawHierarchyNode(c);
@@ -394,7 +370,6 @@ void EditorWindows::drawHierarchy() {
         return;
     }
 
-    // Buttons / 按钮
     if (ImGui::Button("Delete Selected / 删除选中")) {
         deleteSelectedRecursive();
     }
@@ -405,10 +380,7 @@ void EditorWindows::drawHierarchy() {
 
     ImGui::Separator();
 
-    // Draw root objects / 绘制根对象
     for (auto& sp : *scene_) {
-        // root objects only (parent == nullptr)
-        // 只画根对象（parent == nullptr）
         if (!sp) continue;
         if (sp->parent != nullptr) continue;
         drawHierarchyNode(sp.get());
@@ -437,10 +409,6 @@ void EditorWindows::drawInspector(Camera* camera) {
 
     ImGui::Separator();
 
-    // Transform editing / Transform 编辑
-    // 你的 Transform 不是 position/rotation/scale 三字段，而是 mat4 + pos()/setScale()/rotateEulerDeltaDeg()
-    // Your Transform stores mat4 and helper APIs
-
     vec3 p = go->transform.pos();
     float pf[3] = { (float)p.x, (float)p.y, (float)p.z };
     if (ImGui::DragFloat3("Position / 位置", pf, 0.05f)) {
@@ -456,7 +424,6 @@ void EditorWindows::drawInspector(Camera* camera) {
         go->transform.resetScale();
     }
 
-    // Rotation (apply delta euler) / 旋转（增量欧拉角）
     static float rotDelta[3] = { 0,0,0 };
     ImGui::DragFloat3("Rotate Delta (deg) / 旋转增量(度)", rotDelta, 0.5f);
     if (ImGui::Button("Apply Rotation / 应用旋转")) {
@@ -470,7 +437,6 @@ void EditorWindows::drawInspector(Camera* camera) {
 
     ImGui::Separator();
 
-    // Mesh info / Mesh 信息
     if (go->mesh) {
         ImGui::Text("Mesh / 网格: OK");
         ImGui::Text("Vertices / 顶点: %d", (int)go->mesh->getVertexCount());
@@ -489,5 +455,6 @@ void EditorWindows::drawInspector(Camera* camera) {
         ImGui::Text("Mesh / 网格: (null)");
     }
 
+    (void)camera; // 目前 Inspector 不强依赖 camera
     ImGui::End();
 }
