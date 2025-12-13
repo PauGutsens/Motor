@@ -7,7 +7,7 @@ bool MeshImporter::Save(const char* path, const std::vector<Vertex>& vertices, c
     std::ofstream file(path, std::ios::out | std::ios::binary);
     if (!file.is_open()) return false;
 
-    // Preparar la cabecera con los tamaños
+    // Preparar la cabecera con los tamaos
     MeshHeader header;
     header.numVertices = vertices.size();
     header.numIndices = indices.size();
@@ -48,7 +48,8 @@ std::shared_ptr<Mesh> MeshImporter::Load(const char* path) {
 
     // Crear la malla con los datos leidos
     auto mesh = std::make_shared<Mesh>(vertices, indices);
-    mesh->setupMesh(); // Subir a la VRAM
+    mesh->setupMesh();     mesh->computeAABB(); // ensure AABB is valid
+    // Subir a la VRAM
 
     return mesh;
 }

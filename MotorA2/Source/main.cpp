@@ -133,51 +133,59 @@ int main(int argc, char** argv)
     mainCam.aspect = 1280.0f / 720.0f;
 
     // 8) Init EditorWindows / 初始化编辑器窗口系统
+    //EditorWindows editor;
+    //editor.setScene(&scene, selected);
+    //editor.setMainCamera(&mainCam);
+    //editor.init(window, glctx);
+
+    //// 9) Main loop / 主循环
+    //bool running = true;
+    ////while (running && !editor.wantsQuit())
+    ////{
+    ////    SDL_Event e;
+    ////    while (SDL_PollEvent(&e))
+    ////    {
+    ////        // 先喂给编辑器（里面会喂给 ImGui） / Feed editor first (it forwards to ImGui)
+    ////        editor.processEvent(e);
+
+    ////        // 如果是窗口关闭事件 / If window close event
+    ////        if (e.type == SDL_EVENT_QUIT)
+    ////            running = false;
+
+    ////        // 窗口尺寸变化：更新 viewport + 相机 aspect
+    ////        // Window resized: update viewport + camera aspect
+    ////        if (e.type == SDL_EVENT_WINDOW_RESIZED)
+    ////        {
+    ////            int w = 0, h = 0;
+    ////            SDL_GetWindowSize(window, &w, &h);
+    ////            if (h > 0)
+    ////                mainCam.aspect = float(w) / float(h);
+
+    ////            glViewport(0, 0, w, h);
+    ////        }
+    ////    }
+
+
+    ////    // 清屏 / Clear
+    ////    glEnable(GL_DEPTH_TEST);
+    ////    glClearColor(0.12f, 0.12f, 0.13f, 1.0f);
+    ////    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    ////    // 渲染编辑器 UI + 场景 / Render editor UI + scene
+    ////    editor.render(mainCam);
+
+    ////    // Swap / 交换缓冲
+    ////    SDL_GL_SwapWindow(window);
+    ////}
+    //while (running && !editor.wantsQuit())
     EditorWindows editor;
-    editor.setScene(&scene, selected);
-    editor.setMainCamera(&mainCam);
+    editor.setScene(&scene);
     editor.init(window, glctx);
 
-    // 9) Main loop / 主循环
     bool running = true;
-    //while (running && !editor.wantsQuit())
-    //{
-    //    SDL_Event e;
-    //    while (SDL_PollEvent(&e))
-    //    {
-    //        // 先喂给编辑器（里面会喂给 ImGui） / Feed editor first (it forwards to ImGui)
-    //        editor.processEvent(e);
+    while (running)
+    
 
-    //        // 如果是窗口关闭事件 / If window close event
-    //        if (e.type == SDL_EVENT_QUIT)
-    //            running = false;
-
-    //        // 窗口尺寸变化：更新 viewport + 相机 aspect
-    //        // Window resized: update viewport + camera aspect
-    //        if (e.type == SDL_EVENT_WINDOW_RESIZED)
-    //        {
-    //            int w = 0, h = 0;
-    //            SDL_GetWindowSize(window, &w, &h);
-    //            if (h > 0)
-    //                mainCam.aspect = float(w) / float(h);
-
-    //            glViewport(0, 0, w, h);
-    //        }
-    //    }
-   
-
-    //    // 清屏 / Clear
-    //    glEnable(GL_DEPTH_TEST);
-    //    glClearColor(0.12f, 0.12f, 0.13f, 1.0f);
-    //    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    //    // 渲染编辑器 UI + 场景 / Render editor UI + scene
-    //    editor.render(mainCam);
-
-    //    // Swap / 交换缓冲
-    //    SDL_GL_SwapWindow(window);
-    //}
-    while (running && !editor.wantsQuit())
     {
         SDL_Event e;
         while (SDL_PollEvent(&e))

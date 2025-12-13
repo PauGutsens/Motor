@@ -1,6 +1,6 @@
-#pragma once
+ï»¿#pragma once
 // EditorWindows.h
-// ÖĞÓ¢Ë«Óï×¢ÊÍ / Chinese-English bilingual comments
+// ä¸­è‹±åŒè¯­æ³¨é‡Š / Chinese-English bilingual comments
 
 #include <vector>
 #include <memory>
@@ -12,75 +12,55 @@
 #include "Logger.h"
 #include "GameObject.h"
 
-class Camera; // Forward declaration / Ç°ÖÃÉùÃ÷
+class Camera; // Forward declaration / å‰ç½®å£°æ˜
 
 class EditorWindows {
 public:
-    // ³õÊ¼»¯ ImGui + °ó¶¨ SDL3/OpenGL
+    // åˆå§‹åŒ– ImGui + ç»‘å®š SDL3/OpenGL
     // Init ImGui + SDL3/OpenGL backend
     void init(SDL_Window* window, SDL_GLContext gl);
 
-    // ÊÍ·Å ImGui / Destroy ImGui
+    // é‡Šæ”¾ ImGui / Destroy ImGui
     void shutdown();
 
-    // Ã¿Ö¡¿ªÊ¼£ºNewFrame
+    // æ¯å¸§å¼€å§‹ï¼šNewFrame
     // Per-frame begin: NewFrame
     void newFrame();
 
-    // äÖÈ¾ËùÓĞ´°¿Ú£¨²Ëµ¥¡¢²ã¼¶¡¢Inspector¡¢Console¡­£©
+    // æ¸²æŸ“æ‰€æœ‰çª—å£ï¼ˆèœå•ã€å±‚çº§ã€Inspectorã€Consoleâ€¦ï¼‰
     // Render all editor windows (menu, hierarchy, inspector, console...)
     void render(Camera* camera);
 
-    // ¼æÈİ main.cpp£º´«ÒıÓÃÒ²¿ÉÒÔ
-    void render(Camera& camera) { render(&camera); }
-
-    // ÈÃ main.cpp °Ñ SDL_Event Í¶Î¹½øÀ´£¨ÓÃÓÚ ImGui ÊäÈë£©
+    // è®© main.cpp æŠŠ SDL_Event æŠ•å–‚è¿›æ¥ï¼ˆç”¨äº ImGui è¾“å…¥ï¼‰
     // Feed SDL_Event to ImGui
     void processEvent(const SDL_Event& e);
 
+    // è®© main.cpp è®¾ç½®å½“å‰åœºæ™¯ï¼ˆæ‰€æœ‰å¯¹è±¡ç”± shared_ptr æŒæœ‰ï¼›æ ‘ç»“æ„ç”¨ raw æŒ‡é’ˆé“¾æ¥ï¼‰
     // Set current scene (objects owned by shared_ptr; tree uses raw pointers)
     void setScene(std::vector<std::shared_ptr<GameObject>>* scene);
 
-    // ¼æÈİ main.cpp£ºÍ¬Ê±°Ñ selected ÒıÓÃ½»¸ø±à¼­Æ÷£¨¿ÉÑ¡£©
-    // Compatibility: also pass selected reference (optional)
-    void setScene(std::vector<std::shared_ptr<GameObject>>* scene, std::shared_ptr<GameObject>& selected);
-
-    // ÈÃ main.cpp ÉèÖÃÖ÷Ïà»úÖ¸Õë
-    // Set main camera pointer
-    void setMainCamera(Camera* cam);
-
-    // Ö÷Ñ­»·ÍË³ö±ê¼Ç£¨main.cpp ÓÃ£©
-    // Quit flag for main loop
-    bool wantsQuit() const;
-
 private:
     // -------------------------
-    // ×´Ì¬ / State
+    // çŠ¶æ€ / State
     // -------------------------
     SDL_Window* window_ = nullptr;
     SDL_GLContext gl_ = nullptr;
 
     std::vector<std::shared_ptr<GameObject>>* scene_ = nullptr;
 
-    // main.cpp ´«½øÀ´µÄ¡°µ±Ç°Ñ¡ÖĞ¶ÔÏó¡±ÒıÓÃ£¨¿ÉÑ¡£©
-    // Optional external selected reference
-    std::shared_ptr<GameObject>* selectedRef_ = nullptr;
-
-    Camera* mainCam_ = nullptr;
-    bool quit_ = false;
-
     bool show_demo_ = false;
     bool show_about_ = false;
     bool show_console_ = true;
 
-    // Ñ¡Ôñ¶ÔÏó£¨shared_ptr ±£³ÖÉúÃüÖÜÆÚ£©
+    // é€‰æ‹©å¯¹è±¡ï¼ˆshared_ptr ä¿æŒç”Ÿå‘½å‘¨æœŸï¼‰
+    // Selection (shared_ptr keeps lifetime)
     std::shared_ptr<GameObject> selected_ = nullptr;
 
-    // Console buffer
+    // Console buffer / æ§åˆ¶å°æ–‡æœ¬ç¼“å­˜
     std::vector<std::string> console_;
 
     // -------------------------
-    // UI drawing
+    // UI drawing / UI ç»˜åˆ¶
     // -------------------------
     void drawMainMenuBar();
     void drawHierarchy();
@@ -89,22 +69,51 @@ private:
     void drawAbout();
 
     // -------------------------
-    // Scene helpers
+    // Scene helpers / åœºæ™¯è¾…åŠ©
     // -------------------------
     void log(const std::string& s);
 
+    // è·å– Assets æ ¹ç›®å½•ï¼ˆé»˜è®¤ï¼š<project>/Assetsï¼‰
+    // Get assets root path (default: <project>/Assets)
     std::string getAssetsPath();
+
+    // ä» Assets/Street é‡ŒåŠ è½½ FBX/DAE ç­‰æ¨¡å‹ï¼ˆä½ è€å¸ˆç»™çš„ Streetï¼‰
+    // Load model from Assets/Street (Street pack from teacher)
     void loadStreetAsset(const std::string& filename);
 
+    // é€’å½’ç”»å±‚çº§æ ‘ï¼ˆraw pointer only; ownership is in scene_ï¼‰
+    // Draw hierarchy recursively
     void drawHierarchyNode(GameObject* node);
+
+    // é€‰æ‹©è®¾ç½®ï¼šåŒæ—¶ç»´æŠ¤ isSelected æ ‡è®°ï¼ˆä½ çš„ GameObject æœ‰è¿™ä¸ªå­—æ®µï¼‰
+    // Set selection: keep isSelected flag (your GameObject has it)
     void setSelection(const std::shared_ptr<GameObject>& go);
+
+    // æŸ¥æ‰¾ raw æŒ‡é’ˆå¯¹åº”çš„ shared_ptrï¼ˆå› ä¸º children/parent éƒ½æ˜¯ rawï¼‰
+    // Find shared_ptr from raw pointer (since tree uses raw pointers)
     std::shared_ptr<GameObject> findShared(GameObject* raw);
 
+    // æ”¶é›†ååºéå†ï¼ˆç”¨äºå®‰å…¨åˆ é™¤ï¼šå…ˆåˆ å­å†åˆ çˆ¶ï¼‰
+    // Collect postorder traversal (safe delete: children first)
     void collectPostorder(GameObject* root, std::vector<GameObject*>& out);
+
+    // ä» scene_ ä¸­ç§»é™¤ä¸€ä¸ª raw å¯¹è±¡ï¼ˆåŒæ—¶ä»çˆ¶èŠ‚ç‚¹ children ä¸­æ–­å¼€ï¼‰
+    // Remove raw object from scene_ (also detach from parent->children)
     void removeFromScene(GameObject* raw);
+
+    // åˆ é™¤å½“å‰é€‰ä¸­å¯¹è±¡ï¼ˆé€’å½’åˆ å­æ ‘ï¼‰
+    // Delete selected object (recursive)
     void deleteSelectedRecursive();
 
+    // Reparentï¼šæŠŠ dragged æŒ‚åˆ° target ä¸‹ï¼ŒåŒæ—¶ä¿æŒä¸–ç•Œå˜æ¢ä¸å˜
+    // Reparent dragged under target, preserving world transform
     void reparent(GameObject* dragged, GameObject* target);
+
+    // é‡æ–°æ’åºï¼šåŒä¸€ä¸ª parent ä¸‹çš„ children é¡ºåºè°ƒæ•´
+    // Reorder siblings under same parent
     void reorderSibling(GameObject* node, GameObject* parent, int newIndex);
+
+    // é‡æ–°æ’åºï¼šæ ¹èŠ‚ç‚¹ï¼ˆscene_ vector çš„é¡ºåºï¼‰è°ƒæ•´
+    // Reorder root objects (scene_ vector order)
     void reorderRoot(GameObject* node, int newIndex);
 };
