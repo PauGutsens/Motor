@@ -12,22 +12,48 @@ void GameObject::draw() const {
     if (!mesh) return;
     glPushMatrix();
     glMultMatrixd(glm::value_ptr(computeWorldMatrix(this)));
+    //if (isSelected) {
+    //    glDisable(GL_LIGHTING);
+    //    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    //    glLineWidth(3.0f);
+    //    glColor3f(1.0f, 1.0f, 0.0f);
+    //    mesh->draw();
+    //    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    //    glLineWidth(1.0f);
+    //    glEnable(GL_LIGHTING);
+    //}
+    //if (isSelected) {
+    //    glPushAttrib(GL_ENABLE_BIT | GL_POLYGON_BIT | GL_CURRENT_BIT | GL_LINE_BIT);
+
+    //    glDisable(GL_LIGHTING);
+    //    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    //    glLineWidth(3.0f);
+    //    glColor3f(1.0f, 1.0f, 0.0f);
+    //    mesh->draw();
+
+    //    glPopAttrib();
+    //}
     if (isSelected) {
+        glPushAttrib(GL_ENABLE_BIT | GL_POLYGON_BIT | GL_CURRENT_BIT | GL_LINE_BIT);
+
         glDisable(GL_LIGHTING);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(3.0f);
         glColor3f(1.0f, 1.0f, 0.0f);
         mesh->draw();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glLineWidth(1.0f);
-        glEnable(GL_LIGHTING);
+
+        glPopAttrib();
     }
+
     mesh->draw();
     glPopMatrix();
 }
 
 void GameObject::setMesh(std::shared_ptr<Mesh> m) {
     mesh = m;
+    mesh->showVertexNormals = false;
+    mesh->showFaceNormals = false;
+
 }
 
 void GameObject::setTexture(GLuint texID) {

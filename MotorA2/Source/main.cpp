@@ -225,6 +225,13 @@ int main(int argc, char** argv)
         glEnable(GL_DEPTH_TEST);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDisable(GL_LIGHTING);     // 关键：避免没有灯光导致全黑
+        glDisable(GL_TEXTURE_2D);   // 你现在 TextureID=0，先明确关掉
+        glColor3f(0.8f, 0.8f, 0.8f);// 给一个默认颜色，让面可见
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glLineWidth(1.0f);
+        glColor3f(0.8f, 0.8f, 0.8f);
+
 
         // ✅ 4) 固定管线：把 Camera 的投影/视图矩阵加载进 OpenGL
         // （因为你的 GameObject::draw() 用的是 glPushMatrix/glMultMatrixd，必须走 fixed pipeline）
