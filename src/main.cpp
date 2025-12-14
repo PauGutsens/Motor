@@ -522,8 +522,20 @@ static void render() {
     if (!editorCameraInitialized) {
          editorCamera.transform.setPosition({0, 5, 20});
          editorCamera.fov = glm::radians(60.0);
+         editorCamera.zFar = 5000.0; // Increased from default to see further
+         
+         // Connect EditorWindows settings to Camera
+         editorCamera.moveSpeed = editor.cameraMoveSpeed;
+         editorCamera.lookSensitivity = editor.cameraSensitivity;
+         editorCamera.zoomSpeed = editor.cameraZoomSpeed;
+         
          editorCameraInitialized = true;
     }
+    
+    // Update camera settings from editor (in case user changed them)
+    editorCamera.moveSpeed = editor.cameraMoveSpeed;
+    editorCamera.lookSensitivity = editor.cameraSensitivity;
+    editorCamera.zoomSpeed = editor.cameraZoomSpeed;
     
     // Resize Scene FBO
     auto sceneBounds = editor.getSceneViewBounds();
