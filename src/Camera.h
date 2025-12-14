@@ -50,10 +50,6 @@ private:
     double _orbitDistance = 5.0;
 
     void _applyYawPitchToBasis();
-    void _panPixels(int dx, int dy);
-    void _orbitPixels(int dx, int dy);
-    void _freeLookPixels(int dx, int dy);
     void _moveFPS(double dt);
-    void _dollySteps(int steps);
     static vec3 _worldUp() { return vec3(0, 1, 0); }
 };

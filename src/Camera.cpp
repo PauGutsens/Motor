@@ -8,11 +8,10 @@
 extern SDL_Window* window;
 
 mat4 Camera::projection() const {
-    return glm::perspective(fov, aspect, zNear, zFar);
+return glm::perspective(fov, aspect, zNear, zFar);
 }
 
 mat4 Camera::view() const {
-    // base Transform + normal
     vec3 f = glm::normalize(transform.fwd());
     vec3 u = glm::normalize(transform.up());
     vec3 p = transform.pos();
@@ -20,41 +19,44 @@ mat4 Camera::view() const {
 }
 
 void Camera::onMouseButton(uint8_t button, int state, int x, int y) {
-    if (state == 1) { _lastX = x; _lastY = y; _haveLast = true; }
+ if (state == 1) { _lastX = x; _lastY = y; _haveLast = true; }
 
     if (button == SDL_BUTTON_RIGHT) {
         _rmb = (state == 1);
-        // modo Fly
+        // Usar relative mouse mode para permitir rotaciones sin límites
         SDL_SetWindowRelativeMouseMode(window, _rmb ? true : false);
-    }
-    else if (button == SDL_BUTTON_LEFT) {
-        _lmb = (state == 1);
-    }
-    else if (button == SDL_BUTTON_MIDDLE) {
-        _mmb = (state == 1);
     }
 }
 
 void Camera::onMouseMove(int x, int y) {
     if (!_haveLast) { _lastX = x; _lastY = y; _haveLast = true; return; }
+    if (!_rmb) return;  // Solo procesar si RMB está presionado
+    
     int dx = x - _lastX;
     int dy = y - _lastY;
-    _lastX = x; _lastY = y;
+    _lastX = x; 
+    _lastY = y;
 
-    // Prioridad de modos
-    if (_alt && _lmb)        _orbitPixels(dx, dy);
-    else if (_mmb || (_rmb && _shift)) _panPixels(dx, dy);
-    else if (_rmb)           _freeLookPixels(dx, dy);
+    // Rotación (Yaw/Pitch) - como Unity
+    // Con relative mouse mode, los valores de x,y ya son relativos
+    _yaw -= dx * lookSensitivity;
+    _pitch -= dy * lookSensitivity;
+    
+    // Aplicar rotación inmediatamente
+    _applyYawPitchToBasis();
 }
 
 void Camera::onMouseWheel(int direction) {
-    _dollySteps(direction);
+ if (direction == 0) return;
+    
+    // Zoom hacia adelante/atrás (como Unity)
+    vec3 f = glm::normalize(transform.fwd());
+    double delta = (double)direction * zoomSpeed;
+    transform.pos() += f * delta;
 }
 
 void Camera::onKeyDown(int scancode) {
     switch (scancode) {
-    case SDL_SCANCODE_LALT: case SDL_SCANCODE_RALT:   _alt = true; break;
-    case SDL_SCANCODE_LSHIFT: case SDL_SCANCODE_RSHIFT: _shift = true; break;
     case SDL_SCANCODE_W: _w = true; break;
     case SDL_SCANCODE_A: _a = true; break;
     case SDL_SCANCODE_S: _s = true; break;
@@ -67,21 +69,19 @@ void Camera::onKeyDown(int scancode) {
 
 void Camera::onKeyUp(int scancode) {
     switch (scancode) {
-    case SDL_SCANCODE_LALT: case SDL_SCANCODE_RALT:   _alt = false; break;
-    case SDL_SCANCODE_LSHIFT: case SDL_SCANCODE_RSHIFT: _shift = false; break;
-    case SDL_SCANCODE_W: _w = false; break;
-    case SDL_SCANCODE_A: _a = false; break;
-    case SDL_SCANCODE_S: _s = false; break;
-    case SDL_SCANCODE_D: _d = false; break;
-    case SDL_SCANCODE_Q: _q = false; break;
-    case SDL_SCANCODE_E: _e = false; break;
-    default: break;
+        case SDL_SCANCODE_W: _w = false; break;
+        case SDL_SCANCODE_A: _a = false; break;
+        case SDL_SCANCODE_S: _s = false; break;
+        case SDL_SCANCODE_D: _d = false; break;
+        case SDL_SCANCODE_Q: _q = false; break;
+        case SDL_SCANCODE_E: _e = false; break;
+        default: break;
     }
 }
 
 void Camera::update(double dt) {
-    _moveFPS(dt);
     _applyYawPitchToBasis();
+    _moveFPS(dt);
 }
 
 void Camera::focusOn(const vec3& targetCenter, double radius) {
@@ -100,7 +100,11 @@ void Camera::_applyYawPitchToBasis() {
 
     double cp = std::cos(_pitch), sp = std::sin(_pitch);
     double cy = std::cos(_yaw), sy = std::sin(_yaw);
+    
+    // Construir vector forward a partir de yaw/pitch
     vec3 f = vec3(cp * sy, sp, cp * cy);
+  
+    // Recalcular Right y Up
     vec3 r = glm::normalize(glm::cross(f, _worldUp()));
     vec3 u = glm::normalize(glm::cross(r, f));
     vec3 l = -r;
@@ -112,68 +116,26 @@ void Camera::_applyYawPitchToBasis() {
     M[3] = vec4(transform.pos(), 1.0);
 }
 
-void Camera::_freeLookPixels(int dx, int dy) {
-    _yaw -= dx * lookSensitivity;
-    _pitch -= dy * lookSensitivity;
-}
-
-void Camera::_orbitPixels(int dx, int dy) {
-    // órbita alrededor del tarjet
-    _yaw -= dx * lookSensitivity;
-    _pitch -= dy * lookSensitivity;
-    _applyYawPitchToBasis();
-
-    vec3 f = glm::normalize(transform.fwd());
-    transform.pos() = _orbitTarget - f * _orbitDistance;
-}
-
-void Camera::_panPixels(int dx, int dy) {
-    vec3 f = glm::normalize(transform.fwd());
-    vec3 r = -glm::normalize(transform.left());
-    vec3 u = glm::normalize(transform.up());
-
-    double refDist = _orbitDistance;
-    if (refDist <= 0.0) {
-        refDist = 1.0;
-    }
-    double s = panSpeed * refDist;
-    transform.pos() += (-r * (double)dx + u * (double)dy) * s;
-}
-
 void Camera::_moveFPS(double dt) {
     if (!_rmb) return;
 
-    double speed = moveSpeed * (_shift ? 2.0 : 1.0);
+  // Movimiento solo si RMB está presionado
+    double speed = moveSpeed * dt;
     vec3 f = glm::normalize(transform.fwd());
-    vec3 r = -glm::normalize(transform.left());
+    vec3 r = glm::normalize(transform.right());
+    vec3 u = vec3(0, 1, 0);  // Siempre arriba en world space
+    
     vec3 move(0.0);
 
-    if (_w) move += f;
-    if (_s) move -= f;
-    if (_a) move -= r;
-    if (_d) move += r;
-    if (_q) move += vec3(0, -1, 0);
-    if (_e) move += vec3(0, 1, 0);
+    if (_w) move += f;      // Forward (along camera forward)
+    if (_s) move -= f;      // Backward (opposite to forward)
+    if (_d) move += r;      // Right (along camera right)
+    if (_a) move -= r;      // Left (opposite to right)
+    if (_e) move += u;      // Up (world up)
+    if (_q) move -= u;      // Down (world down)
 
-    if (glm::length(move) > 0.0) {
-        move = glm::normalize(move) * (speed * dt);
+    if (glm::length(move) > 0.0001) {
+        move = glm::normalize(move) * speed;
         transform.pos() += move;
-    }
-}
-
-void Camera::_dollySteps(int steps) {
-    if (steps == 0) return;
-
-    vec3 f = glm::normalize(transform.fwd());
-    double ref = std::max(0.001, _orbitDistance);
-    double delta = (double)steps * zoomSpeed * std::max(0.2, ref * 0.1);
-
-    if (_alt || _lmb) {
-        _orbitDistance = std::max(0.001, _orbitDistance - delta);
-        transform.pos() = _orbitTarget - f * _orbitDistance;
-    }
-    else {
-        transform.pos() += f * delta;
-        _orbitDistance = glm::length(_orbitTarget - transform.pos());
     }
 }

@@ -408,55 +408,73 @@ static void handle_input(double deltaTime) {
     const auto& sceneBounds = editor.getSceneViewBounds();
     
     bool allowEditorInput = !isPlaying; 
+
+    // SDL3: Mouse coordinates are floats
+    float mx, my;
+    SDL_GetMouseState(&mx, &my);
+    bool insideScene = (mx >= sceneBounds.x && mx <= sceneBounds.x + sceneBounds.w &&
+         my >= sceneBounds.y && my <= sceneBounds.y + sceneBounds.h);
     
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL3_ProcessEvent(&event);
         if (event.type == SDL_EVENT_QUIT) running = false;
         if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(window)) running = false;
-        
         if (event.type == SDL_EVENT_DROP_FILE && event.drop.data) {
             string droppedFile = event.drop.data;
             handleDropFile(droppedFile);
         }
-        
-        // EDITOR CAMERA INPUT - Delegar a la clase Camera
-        if (allowEditorInput) {
-            // Mouse buttons
+    
+        // EDITOR CAMERA INPUT - Solo si estamos en la ventana de Scene y permitido
+        if (allowEditorInput && insideScene) {
+            // Mouse button events - Solo si estamos en Scene
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
                 int state = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? 1 : 0;
                 editorCamera.onMouseButton(event.button.button, state, event.button.x, event.button.y);
             }
-            // Mouse motion
-            else if (event.type == SDL_EVENT_MOUSE_MOTION) {editorCamera.onMouseMove(event.motion.x, event.motion.y);}
+            // Mouse motion - Procesar siempre si RMB está presionado (relative mode lo maneja)
+            else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+                editorCamera.onMouseMove(event.motion.x, event.motion.y);
+            }
             // Mouse wheel
-            else if (event.type == SDL_EVENT_MOUSE_WHEEL) { editorCamera.onMouseWheel(event.wheel.y);}
+            else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+                editorCamera.onMouseWheel(event.wheel.y);
+            }
             // Keyboard
-            else if (event.type == SDL_EVENT_KEY_DOWN) { editorCamera.onKeyDown(event.key.scancode);}
-            // F key for focus
-            if (event.key.key == SDLK_F && selectedGameObject) {
-                mat4 m = computeWorldMatrix(selectedGameObject.get());
-                vec3 target = vec3(m[3]); // Position
-            
-                double radius = 1.0;
-                if (selectedGameObject->mesh && selectedGameObject->mesh->localAABB.isValid()) {
-                    vec3 extent = selectedGameObject->mesh->localAABB.max - selectedGameObject->mesh->localAABB.min;
-                    radius = glm::length(extent) * 0.5;
+            else if (event.type == SDL_EVENT_KEY_DOWN) {
+                editorCamera.onKeyDown(event.key.scancode);
+
+                // F key for focus
+                if (event.key.key == SDLK_F && selectedGameObject) {
+                    mat4 m = computeWorldMatrix(selectedGameObject.get());
+                    vec3 target = vec3(m[3]); // Position
+                    double radius = 1.0;
+                    if (selectedGameObject->mesh && selectedGameObject->mesh->localAABB.isValid()) {
+                        vec3 extent = selectedGameObject->mesh->localAABB.max - selectedGameObject->mesh->localAABB.min;
+                        radius = glm::length(extent) * 0.5;
+                    }
+
+                    editorCamera.focusOn(target, radius);
                 }
-       
-                editorCamera.focusOn(target, radius);
+            }
+            else if (event.type == SDL_EVENT_KEY_UP) {
+                editorCamera.onKeyUp(event.key.scancode);
             }
         }
-        else if (event.type == SDL_EVENT_KEY_UP) {editorCamera.onKeyUp(event.key.scancode);}
-            
-        // Selection raycast (left click in scene)
-        if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT && !ImGui::GetIO().WantCaptureMouse) {
+        // Si RMB está presionado pero saliste de Scene, dejar de procesar rotación
+        else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_RIGHT) {
+            // Soltar RMB incluso fuera de Scene
+            editorCamera.onMouseButton(event.button.button, 0, event.button.x, event.button.y);
+        }
+ 
+        // Selection raycast (left click in scene) - Solo permitido si estamos en Scene
+        if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT && insideScene && !ImGui::GetIO().WantCaptureMouse) {
             float localX = event.button.x - sceneBounds.x;
             float localY = event.button.y - sceneBounds.y;
   
             mat4 view = editorCamera.view();
             double aspect = (sceneBounds.h > 0) ? sceneBounds.w / sceneBounds.h : 1.0;
             mat4 proj = editorCamera.projection();
-           
+   
             Ray ray = getRayFromMouse((int)localX, (int)localY, editorCamera.transform.pos(), proj, view, (int)sceneBounds.w, (int)sceneBounds.h);
 
             auto candidates = mainOctree.queryRay(ray);
@@ -464,7 +482,7 @@ static void handle_input(double deltaTime) {
             double closestDist = std::numeric_limits<double>::max();
        
             for (auto& go : candidates) {
-                if (!go->mesh) continue;
+            if (!go->mesh) continue;
                 mat4 worldMatrix = computeWorldMatrix(go.get());
                 AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
                 double t;
@@ -472,7 +490,7 @@ static void handle_input(double deltaTime) {
                     if (t < closestDist) { closestDist = t; closest = go; }
                 }
             }
-      
+  
             for(auto& g : gameObjects) g->isSelected = false;
             if (closest) {
                 closest->isSelected = true;
@@ -483,8 +501,10 @@ static void handle_input(double deltaTime) {
         }
     }
 
-    // Update camera (apply FPS movement if RMB held)
-    editorCamera.update(deltaTime);
+    // Update camera - Solo si en Scene
+    if (allowEditorInput && insideScene) {
+      editorCamera.update(deltaTime);
+    }
 }
 
 static void render() {
