@@ -88,26 +88,17 @@ std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& pat
     std::vector<std::shared_ptr<Mesh>> meshes;
     Assimp::Importer importer;
     
-    // Check if this is street.fbx - only apply PreTransformVertices for it
-    bool isStreet = (path.find("street.fbx") != std::string::npos || 
-                     path.find("Street.fbx") != std::string::npos ||
-                     path.find("STREET.FBX") != std::string::npos);
-    
-    unsigned int flags = aiProcess_Triangulate |
-                        aiProcess_GenSmoothNormals |
-                        aiProcess_ImproveCacheLocality |
-                        aiProcess_JoinIdenticalVertices |
-                        aiProcess_RemoveRedundantMaterials |
-                        aiProcess_OptimizeMeshes |
-                        aiProcess_CalcTangentSpace |
-                        aiProcess_ValidateDataStructure;
-    
-    // Only apply PreTransformVertices for street.fbx
-    if (isStreet) {
-        flags |= aiProcess_PreTransformVertices;
-    }
-    
-    const aiScene* scene = importer.ReadFile(path.c_str(), flags);
+    const aiScene* scene = importer.ReadFile(
+        path.c_str(),
+        aiProcess_Triangulate |
+        aiProcess_GenSmoothNormals |
+        aiProcess_ImproveCacheLocality |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_RemoveRedundantMaterials |
+        aiProcess_OptimizeMeshes |
+        aiProcess_CalcTangentSpace |
+        aiProcess_ValidateDataStructure
+    );
 
     if (!scene || !scene->mRootNode || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) != 0) {
         std::cerr << "Assimp error while loading \"" << path << "\": "
