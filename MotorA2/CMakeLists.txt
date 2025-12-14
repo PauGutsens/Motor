@@ -25,8 +25,9 @@ file(GLOB_RECURSE MOTOR_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.h"
 )
 
-# 暂时排除 TextureLoader.cpp（里面用到 DevIL，之后单独配置）
-list(FILTER MOTOR_SOURCES EXCLUDE REGEX "TextureLoader.cpp$")
+# Exclude TextureStubs.cpp now that real TextureLoader is enabled
+# 现在启用了真正的 TextureLoader，这里把临时的 TextureStubs.cpp 排除
+list(FILTER MOTOR_SOURCES EXCLUDE REGEX "TextureStubs.cpp$")
 
 add_executable(MotorA2
     ${MOTOR_SOURCES}

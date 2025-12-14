@@ -42,6 +42,27 @@ void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
     // Enable keyboard navigation if you want
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
+    // Fonts: add default + merge a CJK font if present
+    // 字体：先用默认字体，再尝试合并一个支持中文的字体
+    io.Fonts->AddFontDefault();
+
+    {
+        ImFontConfig cfg;
+        cfg.MergeMode = true;
+        cfg.PixelSnapH = true;
+        static const ImWchar ranges[] = {
+            0x0020, 0x00FF,   // Basic Latin + Latin-1
+            0x4E00, 0x9FA5,   // Common CJK Unified Ideographs
+            0
+        };
+
+        fs::path fontPath = fs::current_path() / "Assets" / "Fonts" / "NotoSansSC-Regular.otf";
+        if (fs::exists(fontPath)) {
+            io.Fonts->AddFontFromFileTTF(fontPath.string().c_str(), 16.0f, &cfg, ranges);
+        }
+        // 如果找不到字体文件，ImGui 会继续使用默认字体，中文会显示为 "?"
+    }
+
     ImGui::StyleColorsDark();
 
     // SDL3 + OpenGL3 backend
@@ -136,23 +157,41 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
     // Use ModelLoader to load meshes
     // 使用 ModelLoader 加载 Mesh 列表
     std::vector<std::shared_ptr<Mesh>> meshes = ModelLoader::loadModel(p.string());
-    if (meshes.empty() || !meshes[0]) {
+    if (meshes.empty()) {
         log(std::string("Failed to load model / 加载失败: ") + p.string());
         return;
     }
-    std::shared_ptr<Mesh> mesh = meshes[0];
 
-    auto go = std::make_shared<GameObject>(p.stem().string());
-    go->setMesh(mesh);
+    std::shared_ptr<GameObject> firstGo = nullptr;
+    std::string baseName = p.stem().string();
 
-    // Root object: parent=null, children empty
-    // 根对象：parent=null，children 空
-    go->parent = nullptr;
-    go->children.clear();
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        const std::shared_ptr<Mesh>& mesh = meshes[i];
+        if (!mesh) continue;
 
-    // Put into scene ownership list / 放进 scene_ 的所有权列表
-    scene_->push_back(go);
-    setSelection(go);
+        std::string goName = (meshes.size() == 1)
+            ? baseName
+            : (baseName + "_" + std::to_string(i));
+
+        auto go = std::make_shared<GameObject>(goName);
+        go->setMesh(mesh);
+
+        // Root object: parent=null, children empty
+        // 根对象：parent=null，children 空
+        go->parent = nullptr;
+        go->children.clear();
+
+        // Put into scene ownership list / 放进 scene_ 的所有权列表
+        scene_->push_back(go);
+
+        if (!firstGo) {
+            firstGo = go;
+        }
+    }
+
+    if (firstGo) {
+        setSelection(firstGo);
+    }
 
     log(std::string("Loaded / 已加载: ") + p.string());
 }
@@ -440,9 +479,6 @@ void EditorWindows::drawInspector(Camera* camera) {
     ImGui::Separator();
 
     // Transform editing / Transform 编辑
-    // 你的 Transform 不是 position/rotation/scale 三字段，而是 mat4 + pos()/setScale()/rotateEulerDeltaDeg()
-    // Your Transform stores mat4 and helper APIs
-
     vec3 p = go->transform.pos();
     float pf[3] = { (float)p.x, (float)p.y, (float)p.z };
     if (ImGui::DragFloat3("Position / 位置", pf, 0.05f)) {
@@ -459,7 +495,7 @@ void EditorWindows::drawInspector(Camera* camera) {
     }
 
     // Rotation (apply delta euler) / 旋转（增量欧拉角）
-    static float rotDelta[3] = { 0,0,0 };
+    static float rotDelta[3] = { 0, 0, 0 };
     ImGui::DragFloat3("Rotate Delta (deg) / 旋转增量(度)", rotDelta, 0.5f);
     if (ImGui::Button("Apply Rotation / 应用旋转")) {
         go->transform.rotateEulerDeltaDeg(vec3(rotDelta[0], rotDelta[1], rotDelta[2]));
@@ -485,6 +521,20 @@ void EditorWindows::drawInspector(Camera* camera) {
             int tw, th;
             glTextureSize((GLuint)tex, tw, th);
             ImGui::Text("Texture size / 纹理尺寸: %dx%d", tw, th);
+        }
+
+        // Mesh debug toggles / 网格调试选项
+        bool showVN = go->mesh->showVertexNormals;
+        bool showFN = go->mesh->showFaceNormals;
+        if (ImGui::Checkbox("Show Vertex Normals / 显示顶点法线", &showVN)) {
+            go->mesh->showVertexNormals = showVN;
+        }
+        if (ImGui::Checkbox("Show Face Normals / 显示面法线", &showFN)) {
+            go->mesh->showFaceNormals = showFN;
+        }
+        float normalLen = static_cast<float>(go->mesh->normalLength);
+        if (ImGui::DragFloat("Normal Length / 法线长度", &normalLen, 0.01f, 0.01f, 10.0f)) {
+            go->mesh->normalLength = normalLen;
         }
     }
     else {

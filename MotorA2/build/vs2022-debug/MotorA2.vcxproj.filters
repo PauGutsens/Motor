@@ -25,7 +25,7 @@
     <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\ModelLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\TextureStubs.cpp">
+    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\TextureLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\main.cpp">

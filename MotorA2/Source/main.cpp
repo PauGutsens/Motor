@@ -58,13 +58,29 @@ int main(int argc, char** argv)
     (void)argc; (void)argv;
 
     PrintRuntimeInfo();
-    SDL_SetMainReady();
+    //SDL_SetMainReady();
+    //// 1) Init SDL / 初始化 SDL
+    ////if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    ////{
+    ////    std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
+    ////    return 1;
+    ////}
+    //if (!SDL_Init(SDL_INIT_VIDEO))
+    //{
+    //    std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
+    //    return 1;
+    //}
+   /* SDL_SetMainReady();*/
     // 1) Init SDL / 初始化 SDL
     //if (SDL_Init(SDL_INIT_VIDEO) != 0)
     //{
     //    std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     //    return 1;
     //}
+    SDL_SetMainReady();
+    // 1) Init SDL / 初始化 SDL
+    // SDL3: SDL_Init returns bool (true = success, false = failure)
+    // SDL3: SDL_Init 返回 bool（true = 成功，false = 失败）
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
