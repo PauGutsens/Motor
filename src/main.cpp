@@ -28,8 +28,15 @@ using namespace std;
 namespace fs = std::filesystem;
 static EditorWindows editor; // Restored
 
+static Camera editorCamera;
+static bool editorCameraInitialized = false;
 
-// static Camera camera; // REMOVED
+// [NEW] Octree instance
+static Octree mainOctree(AABB(vec3(-200, -200, -200), vec3(200, 200, 200)));
+// [NEW] Viewport Framebuffers
+static Framebuffer sceneFramebuffer;
+static Framebuffer gameFramebuffer;
+
 static std::shared_ptr<GameObject> mainCamera = nullptr;
 struct CameraState { Transform transform; GameObject::CameraComponent camComp; };
 static CameraState storedEditorCamera; // To restore editor camera properties
@@ -47,22 +54,6 @@ static bool s_Step = false; // Restored
 
 // static Camera editorCamera; // REMOVED
 static string tempScenePath = "temp.scene";
-
-// [NEW] Octree instance
-static Octree mainOctree(AABB(vec3(-200, -200, -200), vec3(200, 200, 200)));
-// [NEW] Viewport Framebuffers
-static Framebuffer sceneFramebuffer;
-static Framebuffer gameFramebuffer;
-
-// Editor Camera State
-struct EditorCameraState {
-    Transform transform;
-    GameObject::CameraComponent camComp;
-    double yaw = -90.0; // Start looking -Z
-    double pitch = 0.0;
-    bool initialized = false;
-} editorCamera;
-static bool editorCameraInitialized = false;
 
 static std::string getAssetsPath() {
     namespace fs = std::filesystem;
@@ -410,199 +401,90 @@ static shared_ptr<GameObject> selectWithRaycast(int mouseX, int mouseY) {
 }
 
 
-
-// [MOVED] Input Handling
-// [MOVED] Input Handling
-// [MOVED] Input Handling
 static void handle_input(double deltaTime) {
     SDL_Event event;
     
     // Bounds
     const auto& sceneBounds = editor.getSceneViewBounds();
     
-    static bool isDragging = false;
     bool allowEditorInput = !isPlaying; 
     
-    // SDL3: Mouse coordinates are floats
-    float mx, my;
-    SDL_GetMouseState(&mx, &my);
-    bool insideScene = (mx >= sceneBounds.x && mx <= sceneBounds.x + sceneBounds.w &&
-                        my >= sceneBounds.y && my <= sceneBounds.y + sceneBounds.h);
-
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL3_ProcessEvent(&event);
         if (event.type == SDL_EVENT_QUIT) running = false;
         if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(window)) running = false;
         
         if (event.type == SDL_EVENT_DROP_FILE && event.drop.data) {
-             string droppedFile = event.drop.data;
-             handleDropFile(droppedFile);
+            string droppedFile = event.drop.data;
+            handleDropFile(droppedFile);
         }
         
-        // EDITOR CAMERA INPUT
+        // EDITOR CAMERA INPUT - Delegar a la clase Camera
         if (allowEditorInput) {
-            bool rightClick = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_RIGHT);
-            bool rightRelease = (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_RIGHT);
+            // Mouse buttons
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+                int state = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? 1 : 0;
+                editorCamera.onMouseButton(event.button.button, state, event.button.x, event.button.y);
+            }
+            // Mouse motion
+            else if (event.type == SDL_EVENT_MOUSE_MOTION) {editorCamera.onMouseMove(event.motion.x, event.motion.y);}
+            // Mouse wheel
+            else if (event.type == SDL_EVENT_MOUSE_WHEEL) { editorCamera.onMouseWheel(event.wheel.y);}
+            // Keyboard
+            else if (event.type == SDL_EVENT_KEY_DOWN) { editorCamera.onKeyDown(event.key.scancode);}
+            // F key for focus
+            if (event.key.key == SDLK_F && selectedGameObject) {
+                mat4 m = computeWorldMatrix(selectedGameObject.get());
+                vec3 target = vec3(m[3]); // Position
             
-            if (rightClick && insideScene) {
-                isDragging = true;
-                SDL_SetWindowRelativeMouseMode(window, true);
+                double radius = 1.0;
+                if (selectedGameObject->mesh && selectedGameObject->mesh->localAABB.isValid()) {
+                    vec3 extent = selectedGameObject->mesh->localAABB.max - selectedGameObject->mesh->localAABB.min;
+                    radius = glm::length(extent) * 0.5;
+                }
+       
+                editorCamera.focusOn(target, radius);
             }
-            else if (rightRelease) {
-                isDragging = false;
-                SDL_SetWindowRelativeMouseMode(window, false);
-            }
-            else if (event.type == SDL_EVENT_MOUSE_MOTION && isDragging) {
-                 float sensitivity = editor.cameraSensitivity;
-                 
-                 // REVERT: Simple Relative Rotation (Free Look)
-                 // Rotate Yaw (Global Y) and Pitch (Local X)
-                 
-                 // Yaw around Y
-                 editorCamera.transform.rotate(glm::radians(-event.motion.xrel * sensitivity), vec3(0, 1, 0));
-                 
-                 // Pitch around Local X
-                 float pitchDelta = -event.motion.yrel * sensitivity;
-                 editorCamera.transform.rotate(glm::radians(pitchDelta), editorCamera.transform.left());
-            }
-            else if (event.type == SDL_EVENT_MOUSE_WHEEL && insideScene) {
-                 // Zoom: Move along Forward Vector
-                 // Zoom: Change Field of View (Optical Zoom)
-                 // Scroll UP -> Zoom IN -> Lower FOV
-                 // Scroll DOWN -> Zoom OUT -> Higher FOV
-                 double zoomSpeed = (double)editor.cameraZoomSpeed; 
-                 if (ImGui::GetIO().KeyShift) zoomSpeed *= 2.0; 
-                 
-                 double currentFov = glm::degrees(editorCamera.camComp.fov);
-                 currentFov -= event.wheel.y * zoomSpeed;
-                 
-                 // Clamp FOV
-                 if (currentFov < 1.0) currentFov = 1.0;
-                 if (currentFov > 179.0) currentFov = 179.0;
-                 
-                 editorCamera.camComp.fov = glm::radians(currentFov);
-            }
-            else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F && allowEditorInput) {
-                 // FOCUS SELECTED
-                 if (selectedGameObject) {
-                     mat4 m = computeWorldMatrix(selectedGameObject.get());
-                     vec3 target = vec3(m[3]); // Position
-                     
-                     // Get current forward (inverted from Col2)
-                     vec3 back = editorCamera.transform.fwd();
-                     
-                     // Place camera at target + back * distance
-                     double dist = 10.0;
-                     if (selectedGameObject->mesh && selectedGameObject->mesh->localAABB.isValid()) {
-                         // Estimate radius
-                         vec3 extent = selectedGameObject->mesh->localAABB.max - selectedGameObject->mesh->localAABB.min;
-                         double radius = glm::length(extent) * 0.5;
-                         dist = radius * 2.5; 
-                         if (dist < 2.0) dist = 2.0;
-                     }
-                     
-                     editorCamera.transform.setPosition(target + back * dist);
-                 }
-            }
-            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT && insideScene && !ImGui::GetIO().WantCaptureMouse) {
-                 // Selection Raycast
-                 // Local Coordinates
-                 float localX = event.button.x - sceneBounds.x;
-                 float localY = event.button.y - sceneBounds.y;
-                 
-                 mat4 view = glm::inverse(editorCamera.transform.mat());
-                 double aspect = (sceneBounds.h > 0) ? sceneBounds.w / sceneBounds.h : 1.0;
-                 mat4 proj = glm::perspective(glm::radians((double)editorCamera.camComp.fov), aspect, 0.1, 1000.0);
-                 
-                 Ray ray = getRayFromMouse((int)localX, (int)localY, editorCamera.transform.pos(), proj, view, (int)sceneBounds.w, (int)sceneBounds.h);
+        }
+        else if (event.type == SDL_EVENT_KEY_UP) {editorCamera.onKeyUp(event.key.scancode);}
+            
+        // Selection raycast (left click in scene)
+        if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT && !ImGui::GetIO().WantCaptureMouse) {
+            float localX = event.button.x - sceneBounds.x;
+            float localY = event.button.y - sceneBounds.y;
+  
+            mat4 view = editorCamera.view();
+            double aspect = (sceneBounds.h > 0) ? sceneBounds.w / sceneBounds.h : 1.0;
+            mat4 proj = editorCamera.projection();
+           
+            Ray ray = getRayFromMouse((int)localX, (int)localY, editorCamera.transform.pos(), proj, view, (int)sceneBounds.w, (int)sceneBounds.h);
 
-                 auto candidates = mainOctree.queryRay(ray);
-                 shared_ptr<GameObject> closest = nullptr;
-                 double closestDist = std::numeric_limits<double>::max();
-                 
-                 for (auto& go : candidates) {
-                    if (!go->mesh) continue;
-                    mat4 worldMatrix = computeWorldMatrix(go.get());
-                    AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
-                    double t;
-                    if (ray.intersectsAABB(worldAABB, t)) {
-                        if (t < closestDist) { closestDist = t; closest = go; }
-                    }
-                 }
-                 
-                 for(auto& g : gameObjects) g->isSelected = false;
-                 if (closest) {
-                     closest->isSelected = true;
-                     selectedGameObject = closest; // Update global selection
-                 } else {
-                     selectedGameObject = nullptr;
-                 }
+            auto candidates = mainOctree.queryRay(ray);
+            shared_ptr<GameObject> closest = nullptr;
+            double closestDist = std::numeric_limits<double>::max();
+       
+            for (auto& go : candidates) {
+                if (!go->mesh) continue;
+                mat4 worldMatrix = computeWorldMatrix(go.get());
+                AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
+                double t;
+                if (ray.intersectsAABB(worldAABB, t)) {
+                    if (t < closestDist) { closestDist = t; closest = go; }
+                }
+            }
+      
+            for(auto& g : gameObjects) g->isSelected = false;
+            if (closest) {
+                closest->isSelected = true;
+                selectedGameObject = closest;
+            } else {
+                selectedGameObject = nullptr;
             }
         }
     }
-    
-    // Keyboard Move (Editor Camera)
-    if (allowEditorInput && !ImGui::GetIO().WantCaptureKeyboard && (isDragging || insideScene)) {
-        const bool* keys = SDL_GetKeyboardState(NULL);
-        if (isDragging || keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_D] 
-            || keys[SDL_SCANCODE_Q] || keys[SDL_SCANCODE_E]) { 
-            
-            double speed = (double)editor.cameraMoveSpeed * deltaTime; 
-            if (keys[SDL_SCANCODE_LSHIFT]) speed *= 4.0;
-            
-            vec3 moveWorld(0);
-            
-            // Explicit World Space Movement
-            // We use the Transform's directional vectors to determine direction,
-            // then apply the movement directly to the position.
-            
-            // Forward is -Ze (Camera looks down -Z). 
-            // Transform::fwd() returns +Z (Back). So we subtract it.
-            if (keys[SDL_SCANCODE_W]) moveWorld -= editorCamera.transform.fwd(); 
-            if (keys[SDL_SCANCODE_S]) moveWorld += editorCamera.transform.fwd();
-            
-            // Right is +X. Transform::left() returns +X? 
-            // Transform.cpp: "vec3 nx = norm_safe(_left, 0);" usually Col0 is Right.
-            // Let's assume Transform::right() gives us "Right".
-            // If Transform has right(), use it. If not, use left() * -1 or whatever is available.
-            // In typical engines: Right is Col0. Up is Col1. Back is Col2.
-            // Earlier code used transform.right(). Let's stick to that if valid.
-            // Wait, previous file view didn't show `right()`. It showed `left()`. 
-            // Let's assume `left()` is actually Column 0 (which is usually Right in GL).
-            // Let's check Transform.h if we could... but to be safe, I'll use explicit cross product? No.
-            
-            // Let's trust the Accessors exist as they were used before. 
-            // Actually, in the snippet 1049 I saw `move -= editorCamera.transform.right();`
-            
-            // Standard OpenGL Camera:
-            // Forward (Look): -Z 
-            // Right: +X
-            // Up: +Y
-            
-            // Transform::fwd() is +Z (Back).
-            // Transform::right() (or equivalent Col0) is +X (Right).
-            // Transform::up() is +Y (Up).
-            
-            vec3 fwd = glm::normalize(editorCamera.transform.fwd());
-            vec3 right = glm::normalize(editorCamera.transform.right());
-            vec3 up = glm::normalize(editorCamera.transform.up());
-            
-            if (keys[SDL_SCANCODE_W]) moveWorld -= fwd; // Move Forward (-Z)
-            if (keys[SDL_SCANCODE_S]) moveWorld += fwd; // Move Backward (+Z)
-            
-            if (keys[SDL_SCANCODE_A]) moveWorld -= right; // Move Left (-X)
-            if (keys[SDL_SCANCODE_D]) moveWorld += right; // Move Right (+X)
-            
-            if (keys[SDL_SCANCODE_Q]) moveWorld -= up; // Down (-Y)
-            if (keys[SDL_SCANCODE_E]) moveWorld += up; // Up (+Y)
-            
-            if (glm::length(moveWorld) > 0.0001) {
-                // Apply usage of setPosition to be 100% sure we are moving in World Space
-                vec3 currentPos = editorCamera.transform.pos();
-                editorCamera.transform.setPosition(currentPos + glm::normalize(moveWorld) * speed);
-            }
-        }
-    }
+
+    // Update camera (apply FPS movement if RMB held)
+    editorCamera.update(deltaTime);
 }
 
 static void render() {
@@ -618,27 +500,16 @@ static void render() {
     // ============================================
     // Init Editor Camera first time
     if (!editorCameraInitialized) {
-         if (mainCamera) {
-             editorCamera.transform = mainCamera->transform;
-             editorCamera.camComp = mainCamera->camera;
-         } else {
-             editorCamera.transform.setPosition({0,5,20});
-             editorCamera.camComp.fov = 60.0;
-         }
-         
-         // Initialize Yaw/Pitch from forward vector
-         vec3 fwd = editorCamera.transform.fwd();
-         editorCamera.pitch = glm::degrees(asin(fwd.y));
-         editorCamera.yaw   = glm::degrees(atan2(fwd.z, fwd.x));
-         
+         editorCamera.transform.setPosition({0, 5, 20});
+         editorCamera.fov = glm::radians(60.0);
          editorCameraInitialized = true;
     }
     
     // Resize Scene FBO
     auto sceneBounds = editor.getSceneViewBounds();
     if (sceneBounds.w > 0 && sceneBounds.h > 0) {
-        if (sceneBounds.w != sceneFramebuffer.GetWidth() || sceneBounds.h != sceneFramebuffer.GetHeight()) 
-             sceneFramebuffer.Rescale(sceneBounds.w, sceneBounds.h);
+  if (sceneBounds.w != sceneFramebuffer.GetWidth() || sceneBounds.h != sceneFramebuffer.GetHeight()) 
+        sceneFramebuffer.Rescale(sceneBounds.w, sceneBounds.h);
     } else {
         if (!sceneFramebuffer.GetTextureID()) sceneFramebuffer.Init(winW, winH);
     }
@@ -648,19 +519,18 @@ static void render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     
-    // Setup Editor View
-    mat4 viewEditor = glm::inverse(editorCamera.transform.mat());
+    // Setup Editor View using Camera class
+    mat4 viewEditor = editorCamera.view();
     glMatrixMode(GL_MODELVIEW);
     glLoadMatrixd(glm::value_ptr(viewEditor));
     
-    mat4 projEditor;
-    {
-        double aspect = (sceneFramebuffer.GetHeight() > 0) ? (double)sceneFramebuffer.GetWidth() / (double)sceneFramebuffer.GetHeight() : 1.77;
-        projEditor = glm::perspective(glm::radians((double)editorCamera.camComp.fov), aspect, 0.1, 1000.0);
-        glMatrixMode(GL_PROJECTION);
-        glLoadMatrixd(glm::value_ptr(projEditor));
-        glMatrixMode(GL_MODELVIEW);
-    }
+    // Update aspect ratio based on scene framebuffer
+    double aspect = (sceneFramebuffer.GetHeight() > 0) ? (double)sceneFramebuffer.GetWidth() / (double)sceneFramebuffer.GetHeight() : 1.77;
+    editorCamera.aspect = aspect;
+    mat4 projEditor = editorCamera.projection();
+    glMatrixMode(GL_PROJECTION);
+    glLoadMatrixd(glm::value_ptr(projEditor));
+    glMatrixMode(GL_MODELVIEW);
     
     draw_floorGrid(20, 1.0);
     
@@ -697,7 +567,7 @@ static void render() {
     auto gameBounds = editor.getGameViewBounds();
     if (gameBounds.w > 0 && gameBounds.h > 0) {
         if (gameBounds.w != gameFramebuffer.GetWidth() || gameBounds.h != gameFramebuffer.GetHeight())
-             gameFramebuffer.Rescale(gameBounds.w, gameBounds.h);
+            gameFramebuffer.Rescale(gameBounds.w, gameBounds.h);
     } else {
        if (!gameFramebuffer.GetTextureID()) gameFramebuffer.Init(winW, winH);
     }
@@ -715,12 +585,12 @@ static void render() {
         
         double aspect = (gameFramebuffer.GetHeight() > 0) ? (double)gameFramebuffer.GetWidth() / (double)gameFramebuffer.GetHeight() : 1.77;
         mat4 projGame = glm::perspective(glm::radians((double)mainCamera->camera.fov), aspect, mainCamera->camera.zNear, mainCamera->camera.zFar);
-        
+      
         glMatrixMode(GL_PROJECTION);
         glLoadMatrixd(glm::value_ptr(projGame));
         glMatrixMode(GL_MODELVIEW);
-        
-        // Draw Objects (Game Pass)
+      
+     // Draw Objects (Game Pass)
         Frustum gameFrustum;
         gameFrustum.extractFromCamera(projGame * viewGame);
         
@@ -751,7 +621,7 @@ static void render() {
 
     if (isPlaying && !lastPlaying) {
         // Start
-        cout << "Starting Simulation... Saving scene to " << tempScenePath << endl;
+        cout << "Saving scene to " << tempScenePath << endl;
         SceneSerializer::SaveScene(tempScenePath, gameObjects);
         // Save Editor Camera
         if (mainCamera) {
@@ -778,13 +648,9 @@ static void render() {
     lastPlaying = isPlaying;
     
     if (isPlaying && (!isPaused || s_Step)) {
-        s_Step = false;
+    s_Step = false;
     }
 
-    static int frameCount = 0;
-    if (editor.isFrustumCullingEnabled() && ++frameCount >= 60) {
-        frameCount = 0;
-    }
     SDL_GL_SwapWindow(window);
 }
 
@@ -817,8 +683,7 @@ int main(int argc, char* argv[]) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     int screenWidth = 1280, screenHeight = 720;
-    window = SDL_CreateWindow("Motor", screenWidth, screenHeight,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    window = SDL_CreateWindow("Motor", screenWidth, screenHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!window) {
         cout << "Window could not be created! " << SDL_GetError() << endl;
         return EXIT_FAILURE;
@@ -827,7 +692,6 @@ int main(int argc, char* argv[]) {
     editor.init(window, glContext);
     editor.setScene(&gameObjects, &selectedGameObject);
     editor.setScene(&gameObjects, &selectedGameObject);
-    // editor.setMainCamera(&camera);  // REMOVED
     if (!glContext) {
         cout << "OpenGL context could not be created!" << endl;
         return EXIT_FAILURE;
