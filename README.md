@@ -1,126 +1,94 @@
 # Motor - 3D Game Engine
-**Version 0.1**
+**Version 0.2**
 
-Motor is is a 3D game engine developed as an academic project for the Game Engine subject at the Videogame Design and Development degree at UPC, CITM (Terrassa, Spain). The engine is built with C++ using OPneGL and provides an editor with support for the FBX models, textures and gameobjects real-time manipulation.
+Motor is a 3D game engine developed as an academic project for the Game Engine subject in the Video Game Design and Development degree at UPC, CITM (Terrassa, Spain). The engine is built with C++ using OpenGL and provides an editor with support for FBX models, textures, real-time GameObject manipulation, and scene management.
 
-**🔗 Project Github:** [https://github.com/PauGutsens/Motor](https://github.com/PauGutsens/Motor)
+**Project Github:** [https://github.com/PauGutsens/Motor](https://github.com/PauGutsens/Motor)
+
+### Team Members
+* **Edu García** - [GitHub](https://github.com/eduuu04)
+* **Pau Gutsens** - [GitHub](https://github.com/PauGutsens)
+
+---
+
+## 1. How to Use the Engine
+
+### Camera Controls (Scene View)
+The editor uses an "FPS-style" camera for scene navigation:
+* **Hold Right Click + Move Mouse**: Rotate camera (Free look).
+* **Hold Right Click + W/A/S/D**: Move camera.
+    * **W / S**: Forward / Backward.
+    * **A / D**: Left / Right.
+    * **Q / E**: Up / Down.
+* **Mouse Wheel**: Zoom In / Zoom Out (Fast forward/backward movement).
+* **F Key**: Focus. Centers the camera on the currently selected object.
+
+### File Management (Drag & Drop)
+The engine supports loading resources by dragging files directly from your file explorer or the "Assets" panel into the scene window or inspector.
+* **3D Models (.fbx)**: Dragging a file into the scene loads the model and instantiates a new GameObject with its mesh.
+* **Textures (.png, .jpg, .dds)**:
+    * Drag a texture onto the "Inspector" window (Texture section) or directly onto a selected object in the scene to apply it.
+
+### Selection and Manipulation
+* **Left Click (in Scene)**: Selects a GameObject using Raycasting. The selected object will be highlighted.
+* **Inspector**: Allows numerical modification of the Transform (Position, Rotation, Scale).
+
+### Toolbar
+Located at the top, controls the simulation state:
+* **Play**: Saves the current scene state and starts the simulation (Game Mode).
+* **Pause**: Pauses the simulation while maintaining state.
+* **Step**: Advances a single frame while paused.
+* **Stop**: Stops the simulation and restores the scene to its original state before Play was pressed.
+
+---
+
+## 2. Additional Features
+
+In addition to the basic requirements, the following advanced features have been implemented:
+
+### Octree (Spatial Partitioning)
+An **Octree** data structure has been implemented to optimize spatial queries.
+* **Culling**: The engine discards rendering of objects outside the camera frustum by querying the Octree.
+* **Optimized Raycasting**: Mouse selection uses the Octree to filter candidates, improving performance in scenes with many objects.
+* **Debug**: You can visualize the Octree structure via the `Config > Show AABBs` menu.
+
+### Framebuffers & Viewports
+Scene rendering ("Scene") and game rendering ("Game") are decoupled using **Framebuffer Objects (FBOs)**. This allows:
+* Independent and resizable editor windows within the ImGui interface.
+* Separation of the editor camera logic from the game camera logic ("Main Camera").
+
+### Scene Serialization
+The engine includes a serialization system (Save/Load).
+* Upon entering **Play** mode, the scene is automatically serialized to a temporary file.
+* Upon exiting Play mode (**Stop**), the scene is deserialized, restoring all objects and properties to their original state.
+
+### Asset Database & Assets Panel
+An **Assets** window has been implemented that:
+* Scans and displays files from the project directory.
+* Supports folder navigation and Drag & Drop of resources into the scene.
+* Manages basic metadata via `.meta` files.
+
+### Advanced Interface (ImGui Docking)
+The editor uses the **Docking** branch of ImGui, allowing the user to rearrange, dock, and undock windows (Inspector, Hierarchy, Scene, Game, Console) to their preference.
+
+---
+
+## 3. Comments
+
+Below are some points of interest regarding the technical implementation:
+
+* **Octree (`Octree.cpp` / `Octree.h`)**: The `Octree` class handles dynamic object insertion. If a node exceeds the capacity limit (`MAX_OBJECTS`), it subdivides recursively. It is integrated into both the rendering loop (for Frustum Culling) and the input system (for Raycasting).
+* **Camera Management**: The `Camera` class handles both the editor camera and GameObject camera components. The editor camera uses a free-look system (fly-cam), while the game camera can be controlled by scripts or components.
+* **Game Loop & Time Step**: In `main.cpp`, the main loop calculates `deltaTime` to ensure smooth movement independent of FPS. The Play/Pause logic manages the update of this time to stop or advance the simulation step-by-step.
+* **File Structure**:
+    * `src/`: C++ source code.
+    * `Assets/`: Root folder for resources (models, textures).
+    * `Library/`: Internal storage for imported resources (metadata).
 
 ### Dependencies Used
-
-- **SDL3**
-- **OpenGL** 
-- **GLEW**
-- **ImGui**
-- **Assimp**
-- **DevIL**
-- **GLM**
-
-
-## 1. How to use the engine
-
-### Camera controls:
-- **Holding Right Click + Moving Mouse**: Camera rotates (free look).
-- **Holding Right Click + W/A/S/D**: FPS-like movement.
-  - **W**: Forward.
-  - **S**: Backwards.
-  - **A**: Left.
-  - **D**: Right.
-- **Holding Right Click + SHIFT + W/A/S/D**: Movement velovity x2.
-- **Mouse Wheel**: Zoom in / zoom out.
-- **Alt + Left Click + Drag**: Orbit around the selected object.
-- **Clic Central del Ratón + Arrastrar**: Camera displace.
-- **Clic Derecho + Shift + Arrastrar**: Alternative Camera displace.
-- **Tecla F**: Focus on the selected object.
-
-### Load File (Drag & Drop)
-- 3D Models
-	- Drag the file .fbx to the window and drop it, will load the model instanly.
-	- It will create a GameObject for every mesh there is in the file.
-- Textures
-	- Select and object.
-	- Drag the file .png/.jpg/.dds to the window and drop it Applies the texture to the selected object.
-	- In case there's no selected object, will appear a message in the console.
-	- Soported formats: PNG, JPG, JPEG, DDS.
-
-- Object Selection
-	- **Left Click**: Cycle between all GameObjects in the scene.
-	- The selected GameObject will appear in yellow.
-	- The object will appear selected in blue in the Inspctor window.
-
----
-
-## 2. Ventanas del Editor
-
-### Console: Gives logs of the system in real-time:
-- Geometry Load (Assimp)
-- Textures Load (DevIL)
-- Library inicialization
-- Warnings and errors
-- Search filters
-- Auto-scroll
-- Clear button
-
-### Configuration
-- FPS graph in real time
-- Hardware information:
-  - GPU
-  - Vendor
-  - OpneGL version
-- System information:
-  - CPU core
-  - System Ram
-
-### Hierarchy
-- GameObject name.
-- Click for selection.
-
-### Inspector
-- Transform
-- Position: Editable with DragFloat3 + reset button.
-- Rotation: Editable with DragFloat3 incremental + reset button.
-- Scale: Editable con DragFloat3 + reset button.
-- All variables are editables in real time.
-- Mesh:
-	- Vertices: Shows the total number of vertices.
-	- Triangles: Shows the total number of triangles.
-	- Show Vertex Normals: Checkbox to visualize normals per vertice.
-	- Show Face Normals: Checkbox to visualize normals per face.
-	- Normal Length: Slider to adjust length of normals (0.01 - 2.0).
-- Texture:
-	- Texture ID: ID from OpenGL of the texture.
-	- Size: Dimensions of the texture.
-	- Apply Checkerboard: Applies test textures.
-	- Restore Texture: Restore the original texture.
-	- Preview: Preview of the applied texture.
-
----
-
-## 3. Barra de Menú
-
-### File
-- Exit: Closes the engine.
-
-### View
-- Console: Shows/hides the console window.
-- Config: Shows/hides the configuration window.
-- Hierarchy: Shows/hides the hierarchy window.
-- Inspector: Shows/hides the inspector window.
-
-### Primitives
-- Load basic geometry:
-	- Cube, Sphere, Cone, Cylinder, Torus, Plane, Disc
-
-### Help
-- GitHub Docs: Opens the document in the browser.
-- Report a bug: Opens a pages of issues in Github.
-- Download latest: Opens the pages of releases in Github.
-- About: Shows a window with engine information (Name, version, libraries, License MIT).
-
----
-
-### Team Members:
-
-- **Edu García** - [GitHub](https://github.com/Eduuuuuuuuuuuu)
-- **Ao Yunqian** - [GitHub](https://github.com/YunqianAo)
-- **Pau Hernández** - [GitHub](https://github.com/PauHeer)
-- **Pau Gutsens** - [GitHub](https://github.com/PauGutsens)
+* **SDL3**: Windows and input management.
+* **OpenGL & GLEW**: Graphics rendering.
+* **ImGui (Docking branch)**: Editor user interface.
+* **Assimp**: 3D model loading.
+* **DevIL**: Image and texture loading.
+* **GLM**: Mathematics (vectors and matrices).
