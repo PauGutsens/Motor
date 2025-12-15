@@ -455,6 +455,19 @@ void EditorWindows::drawInspector(Camera* camera, float x, float y, float w, flo
     if (!selected_) { ImGui::TextUnformatted("No selection / 未选中对象"); ImGui::End(); return; }
 
     GameObject* go = selected_.get();
+    if (camera && ImGui::Button("Frame Selected / 对焦选中"))
+    {
+        if (go->mesh)
+        {
+            mat4 W = computeWorldMatrix(go);
+            AABB wb = go->mesh->getWorldAABB(W);
+            vec3 c = (wb.min + wb.max) * 0.5;
+            vec3 e = (wb.max - wb.min) * 0.5;
+            double radius = glm::length(e);
+            camera->focusOn(c, std::max(0.01, radius));
+        }
+    }
+    ImGui::Separator();
 
     ImGui::Text("Name / 名称:");
     char buf[256];

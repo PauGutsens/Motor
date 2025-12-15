@@ -18,15 +18,11 @@
 
 SDL_Window* window = nullptr;
 
-static void PrintRuntimeInfo() {}
-
 int main(int argc, char** argv)
 {
     (void)argc; (void)argv;
 
-    PrintRuntimeInfo();
     SDL_SetMainReady();
-
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
@@ -80,7 +76,6 @@ int main(int argc, char** argv)
 
     // Camera
     Camera mainCam;
-    mainCam.aspect = 1280.0 / 720.0;
     mainCam.transform.setPosition(vec3(0.0, 1.5, 8.0));
     mainCam.focusOn(vec3(0.0), 5.0);
 
@@ -99,83 +94,100 @@ int main(int argc, char** argv)
         double dt = (double)(nowCounter - prevCounter) / perfFreq;
         prevCounter = nowCounter;
 
-        // 1) Events
+        // 1) Begin ImGui frame first (so io exists)
+        editor.newFrame();
+
+        // 2) Events (camera input gating: ONLY if viewport hovered/focused OR relative mouse mode)
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
             editor.processEvent(e);
 
-            switch (e.type)
+            if (e.type == SDL_EVENT_QUIT)
             {
-            case SDL_EVENT_QUIT:
                 running = false;
                 break;
+            }
+
+            // 相机是否允许吃输入：
+            // - 鼠标在 Viewport 上，允许
+            // - 或者已经进入 relative mouse mode（RMB 按住时），继续允许
+            const bool camMouseAllowed =
+                editor.isViewportHovered() || editor.isViewportFocused() ||
+                SDL_GetWindowRelativeMouseMode(window);
+
+            const bool camKeyAllowed =
+                editor.isViewportFocused() || SDL_GetWindowRelativeMouseMode(window);
+
+            switch (e.type)
+            {
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                if (camMouseAllowed)
+                    mainCam.onMouseButton(e.button.button, 1, (int)e.button.x, (int)e.button.y);
+                break;
+
+            case SDL_EVENT_MOUSE_BUTTON_UP:
+                // 注意：释放一定要传给相机，避免 relative mode 卡住
+                mainCam.onMouseButton(e.button.button, 0, (int)e.button.x, (int)e.button.y);
+                break;
+
+            case SDL_EVENT_MOUSE_MOTION:
+                if (camMouseAllowed)
+                    mainCam.onMouseMove((int)e.motion.x, (int)e.motion.y);
+                break;
+
+            case SDL_EVENT_MOUSE_WHEEL:
+                if (camMouseAllowed)
+                    mainCam.onMouseWheel((int)e.wheel.y);
+                break;
+
+            case SDL_EVENT_KEY_DOWN:
+                if (camKeyAllowed)
+                    mainCam.onKeyDown(e.key.scancode);
+                break;
+
+            case SDL_EVENT_KEY_UP:
+                if (camKeyAllowed)
+                    mainCam.onKeyUp(e.key.scancode);
+                break;
+
             default:
                 break;
             }
         }
 
-        // 2) Begin ImGui frame + build UI (this updates viewport size/hover)
-        editor.newFrame();
-        editor.drawUI(&mainCam);
-
-        // 3) Camera input routing: ONLY when viewport is hovered/focused
-        //    (so操作Inspector时不会乱飞)
-        {
-            ImGuiIO& io = ImGui::GetIO();
-
-            // 获取当前鼠标/键盘状态事件（SDL 事件已经被 Poll 走了）
-            // 所以这里用 SDL_GetMouseState / SDL_GetKeyboardState 的方式也行，
-            // 但你 Camera 已经基于事件回调写好了，我们保持“事件驱动”的方式：
-            // -> 改为：在 PollEvent 循环里把相机事件喂进去，但要加 viewport gating
-        }
-
-        // ✅ 我们把“相机事件处理”放回事件循环里，但加条件：
-        //    由于上面 events 已经处理完，这里补一个二次事件循环是不行的。
-        //    所以做法：在本 main.cpp 中将事件循环改成：
-        //    - 先 editor.newFrame()
-        //    - 再 PollEvent 并根据 editor.isViewportHovered()/Focused() 分发给 Camera
-        //
-        // 为了不引入复杂结构，这里采用最简单稳定的版本：
-        //  - 相机只做连续 update（dt），
-        //  - 事件分发在“下一帧”会正确（Docking UI 常见做法）
-        //
-        // 如果你希望“同一帧就严格 gating”，我下一步再给你一个无延迟版本。
-
-        // 4) Update camera continuous movement
+        // 3) Update camera
         mainCam.update(dt);
 
-        // 5) Render scene INTO viewport FBO (only)
-        bool renderedToViewport = false;
+        // 4) Build UI (this updates viewport size W/H)
+        editor.drawUI(&mainCam);
+
+        // 5) Render scene into Viewport FBO
         if (editor.beginViewportRender())
         {
-            renderedToViewport = true;
-
-            // Clear in viewport
-            glEnable(GL_DEPTH_TEST);
-            glClearColor(0.12f, 0.12f, 0.13f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-            // Fixed pipeline matrices from camera
+            // viewport size -> camera aspect
             int vw = editor.viewportWidth();
             int vh = editor.viewportHeight();
-            mainCam.aspect = (vh > 0) ? (double)vw / (double)vh : mainCam.aspect;
+            if (vh > 0) mainCam.aspect = (double)vw / (double)vh;
 
+            glEnable(GL_DEPTH_TEST);
+            glClearColor(0.75f, 0.75f, 0.75f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+            // fixed pipeline matrices
             mat4 P = mainCam.projection();
             mat4 V = mainCam.view();
-
             glMatrixMode(GL_PROJECTION);
             glLoadMatrixd(glm::value_ptr(P));
             glMatrixMode(GL_MODELVIEW);
             glLoadMatrixd(glm::value_ptr(V));
 
-            // Some safety defaults
+            // safety defaults (避免黑屏)
             glDisable(GL_LIGHTING);
             glDisable(GL_TEXTURE_2D);
             glColor3f(0.85f, 0.85f, 0.85f);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-            // Draw scene
             if (!scene.empty())
             {
                 std::function<void(GameObject*)> drawNode = [&](GameObject* n)
@@ -197,7 +209,6 @@ int main(int argc, char** argv)
         }
 
         // 6) Render ImGui to default framebuffer
-        // Clear default fb as editor background
         int ww = 0, wh = 0;
         SDL_GetWindowSizeInPixels(window, &ww, &wh);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
