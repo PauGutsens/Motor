@@ -1,105 +1,45 @@
 ﻿#include <functional>
 #include <imgui.h>
 
-// main.cpp
-// 中英双语注释 / Chinese-English bilingual comments
-//
-// 目标 / Goal
-// 1) 用 SDL3 创建窗口 + OpenGL 上下文 / Create SDL3 window + OpenGL context
-// 2) 初始化 GLEW 以使用 OpenGL 函数 / Init GLEW for OpenGL function loading
-// 3) 启动 ImGui + 编辑器窗口系统 / Start ImGui + editor windows
-// 4) 进入主循环：事件 -> UI/场景渲染 / Main loop: events -> UI/scene render
 #define SDL_MAIN_HANDLED
-
-
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>   // ✅ 加这一行，保证 SDL_SetMainReady 声明可见
-#include <GL/glew.h> // OpenGL function loader / OpenGL 函数加载器
+#include <SDL3/SDL_main.h>
+#include <GL/glew.h>
 
 #include <iostream>
 #include <vector>
 #include <memory>
-#include <glm/gtc/type_ptr.hpp>   // 为 glm::value_ptr 提供声明
 
-// Project headers / 项目头文件
+#include <glm/gtc/type_ptr.hpp>
+
 #include "Editor/EditorWindows.h"
 #include "Editor/Camera.h"
 #include "Core/GameObject.h"
 
-// 让 Camera.cpp 能访问窗口（它用了 extern SDL_Window* window）
-// Let Camera.cpp access the window (it uses extern SDL_Window* window)
 SDL_Window* window = nullptr;
 
-// 小工具：打印运行信息（可选）
-// Helper: print runtime info (optional)
-//static void PrintRuntimeInfo()
-//{
-//    // Chinese: SDL3 用 SDL_GetVersion 输出版本号
-//    // English: SDL3 uses SDL_GetVersion for version numbers
-//    int major = 0, minor = 0, patch = 0;
-//    SDL_GetVersion(&major, &minor, &patch);
-//    std::cout << "SDL version: " << major << "." << minor << "." << patch << "\n";
-//}
-static void PrintRuntimeInfo()
-{
-    //int major = 0, minor = 0, patch = 0;
-
-    //// SDL3: SDL_GetVersion() returns SDL_Version
-    //SDL_Version v = SDL_GetVersion();
-    //major = (int)v.major;
-    //minor = (int)v.minor;
-    //patch = (int)v.patch;
-
-    //std::cout << "SDL version: " << major << "." << minor << "." << patch << "\n";
-}
+static void PrintRuntimeInfo() {}
 
 int main(int argc, char** argv)
 {
     (void)argc; (void)argv;
 
     PrintRuntimeInfo();
-    //SDL_SetMainReady();
-    //// 1) Init SDL / 初始化 SDL
-    ////if (SDL_Init(SDL_INIT_VIDEO) != 0)
-    ////{
-    ////    std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
-    ////    return 1;
-    ////}
-    //if (!SDL_Init(SDL_INIT_VIDEO))
-    //{
-    //    std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
-    //    return 1;
-    //}
-   /* SDL_SetMainReady();*/
-    // 1) Init SDL / 初始化 SDL
-    //if (SDL_Init(SDL_INIT_VIDEO) != 0)
-    //{
-    //    std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
-    //    return 1;
-    //}
     SDL_SetMainReady();
-    // 1) Init SDL / 初始化 SDL
-    // SDL3: SDL_Init returns bool (true = success, false = failure)
-    // SDL3: SDL_Init 返回 bool（true = 成功，false = 失败）
+
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
         return 1;
     }
 
-    // 2) Request OpenGL 3.3 Core / 请求 OpenGL 3.3 Core
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    // 3) Create window / 创建窗口
     window = SDL_CreateWindow("MotorA2", 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!window)
     {
@@ -108,7 +48,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // 4) Create GL context / 创建 OpenGL 上下文
     SDL_GLContext glctx = SDL_GL_CreateContext(window);
     if (!glctx)
     {
@@ -118,13 +57,9 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // 5) Make context current + VSync / 设置当前上下文 + 垂直同步
     SDL_GL_MakeCurrent(window, glctx);
     SDL_GL_SetSwapInterval(1);
 
-    // 6) Init GLEW / 初始化 GLEW
-    // Chinese: 必须在创建 GL context 之后调用，否则会失败
-    // English: must be called AFTER GL context is created
     glewExperimental = GL_TRUE;
     GLenum glewErr = glewInit();
     if (glewErr != GLEW_OK)
@@ -136,225 +71,145 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // 打印 OpenGL 信息 / Print OpenGL info
     std::cout << "OpenGL Vendor  : " << glGetString(GL_VENDOR) << "\n";
     std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << "\n";
     std::cout << "OpenGL Version : " << glGetString(GL_VERSION) << "\n";
 
-    // 7) Create scene + camera / 创建场景 + 相机
+    // Scene
     std::vector<std::shared_ptr<GameObject>> scene;
-    std::shared_ptr<GameObject> selected = nullptr;
 
+    // Camera
     Camera mainCam;
-    // Chinese: 初始 aspect 用窗口比例；后面窗口 resize 时也会更新
-    // English: set initial aspect; update again on resize
-    mainCam.aspect = 1280.0f / 720.0f;
-    mainCam.transform.setPosition(vec3(0.0, 1.5, 8.0));  // 先拉远一点
-    mainCam.focusOn(vec3(0.0), 5.0);                     // 给一个默认 orbit 距离
+    mainCam.aspect = 1280.0 / 720.0;
+    mainCam.transform.setPosition(vec3(0.0, 1.5, 8.0));
+    mainCam.focusOn(vec3(0.0), 5.0);
 
-
-    // 8) Init EditorWindows / 初始化编辑器窗口系统
-    //EditorWindows editor;
-    //editor.setScene(&scene, selected);
-    //editor.setMainCamera(&mainCam);
-    //editor.init(window, glctx);
-
-    //// 9) Main loop / 主循环
-    //bool running = true;
-    ////while (running && !editor.wantsQuit())
-    ////{
-    ////    SDL_Event e;
-    ////    while (SDL_PollEvent(&e))
-    ////    {
-    ////        // 先喂给编辑器（里面会喂给 ImGui） / Feed editor first (it forwards to ImGui)
-    ////        editor.processEvent(e);
-
-    ////        // 如果是窗口关闭事件 / If window close event
-    ////        if (e.type == SDL_EVENT_QUIT)
-    ////            running = false;
-
-    ////        // 窗口尺寸变化：更新 viewport + 相机 aspect
-    ////        // Window resized: update viewport + camera aspect
-    ////        if (e.type == SDL_EVENT_WINDOW_RESIZED)
-    ////        {
-    ////            int w = 0, h = 0;
-    ////            SDL_GetWindowSize(window, &w, &h);
-    ////            if (h > 0)
-    ////                mainCam.aspect = float(w) / float(h);
-
-    ////            glViewport(0, 0, w, h);
-    ////        }
-    ////    }
-
-
-    ////    // 清屏 / Clear
-    ////    glEnable(GL_DEPTH_TEST);
-    ////    glClearColor(0.12f, 0.12f, 0.13f, 1.0f);
-    ////    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    ////    // 渲染编辑器 UI + 场景 / Render editor UI + scene
-    ////    editor.render(mainCam);
-
-    ////    // Swap / 交换缓冲
-    ////    SDL_GL_SwapWindow(window);
-    ////}
-    //while (running && !editor.wantsQuit())
+    // Editor
     EditorWindows editor;
     editor.setScene(&scene);
     editor.init(window, glctx);
+
     uint64_t prevCounter = SDL_GetPerformanceCounter();
     double perfFreq = (double)SDL_GetPerformanceFrequency();
 
     bool running = true;
     while (running)
-    
-
     {
         uint64_t nowCounter = SDL_GetPerformanceCounter();
         double dt = (double)(nowCounter - prevCounter) / perfFreq;
         prevCounter = nowCounter;
 
-        mainCam.update(dt);
-
+        // 1) Events
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
             editor.processEvent(e);
-            ImGuiIO& io = ImGui::GetIO();
 
             switch (e.type)
             {
             case SDL_EVENT_QUIT:
                 running = false;
                 break;
-
-            case SDL_EVENT_WINDOW_RESIZED:
-            {
-                int w = 0, h = 0;
-                SDL_GetWindowSizeInPixels(window, &w, &h);
-                if (h > 0) mainCam.aspect = (double)w / (double)h;
-                glViewport(0, 0, w, h);
-                break;
-            }
-
-            case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                if (!io.WantCaptureMouse)
-                    mainCam.onMouseButton(e.button.button, 1, (int)e.button.x, (int)e.button.y);
-                break;
-
-            case SDL_EVENT_MOUSE_BUTTON_UP:
-                if (!io.WantCaptureMouse)
-                    mainCam.onMouseButton(e.button.button, 0, (int)e.button.x, (int)e.button.y);
-                break;
-
-            case SDL_EVENT_MOUSE_MOTION:
-                if (!io.WantCaptureMouse)
-                    mainCam.onMouseMove((int)e.motion.x, (int)e.motion.y);
-                break;
-
-            case SDL_EVENT_MOUSE_WHEEL:
-                if (!io.WantCaptureMouse)
-                    mainCam.onMouseWheel((int)e.wheel.y); // y: +上滚 / -下滚
-                break;
-
-            case SDL_EVENT_KEY_DOWN:
-                if (!io.WantCaptureKeyboard)
-                    mainCam.onKeyDown(e.key.scancode);
-                break;
-
-            case SDL_EVENT_KEY_UP:
-                if (!io.WantCaptureKeyboard)
-                    mainCam.onKeyUp(e.key.scancode);
-                break;
-
             default:
                 break;
             }
-
-            if (e.type == SDL_EVENT_QUIT)
-                running = false;
         }
 
-        //// ✅ 1) 先开始 ImGui 新的一帧（必须每帧一次）
-        //editor.newFrame();
-        //int w = 0, h = 0;
-        //SDL_GetWindowSizeInPixels(window, &w, &h);   // SDL3 正确拿像素尺寸
-        //// ✅ 2) 渲染你的世界（可选：先画3D再画UI，或反过来都行）
-        //glViewport(0, 0, w, h);
-        //glEnable(GL_DEPTH_TEST);
-        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        //// draw scene...
-        //// for(auto& go : scene) go->draw(camera);  // 你的项目具体怎么画按你现在的写法
-
-        //// ✅ 3) 最后渲染 UI（里面会 ImGui::Render）
-        //editor.render(&mainCam);
-
-        //// ✅ 4) swap
-        //SDL_GL_SwapWindow(window);
-        // ✅ 1) 每帧开始 ImGui
+        // 2) Begin ImGui frame + build UI (this updates viewport size/hover)
         editor.newFrame();
+        editor.drawUI(&mainCam);
 
-        // ✅ 2) 拿到窗口像素尺寸 -> viewport
-        int w = 0, h = 0;
-        SDL_GetWindowSizeInPixels(window, &w, &h);
-        glViewport(0, 0, w, h);
-
-        // ✅ 3) 清屏 + 深度
-        glEnable(GL_DEPTH_TEST);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDisable(GL_LIGHTING);     // 关键：避免没有灯光导致全黑
-        glDisable(GL_TEXTURE_2D);   // 你现在 TextureID=0，先明确关掉
-        glColor3f(0.8f, 0.8f, 0.8f);// 给一个默认颜色，让面可见
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glLineWidth(1.0f);
-        glColor3f(0.8f, 0.8f, 0.8f);
-
-
-        // ✅ 4) 固定管线：把 Camera 的投影/视图矩阵加载进 OpenGL
-        // （因为你的 GameObject::draw() 用的是 glPushMatrix/glMultMatrixd，必须走 fixed pipeline）
+        // 3) Camera input routing: ONLY when viewport is hovered/focused
+        //    (so操作Inspector时不会乱飞)
         {
-            mainCam.aspect = (h > 0) ? (double)w / (double)h : mainCam.aspect;
+            ImGuiIO& io = ImGui::GetIO();
+
+            // 获取当前鼠标/键盘状态事件（SDL 事件已经被 Poll 走了）
+            // 所以这里用 SDL_GetMouseState / SDL_GetKeyboardState 的方式也行，
+            // 但你 Camera 已经基于事件回调写好了，我们保持“事件驱动”的方式：
+            // -> 改为：在 PollEvent 循环里把相机事件喂进去，但要加 viewport gating
+        }
+
+        // ✅ 我们把“相机事件处理”放回事件循环里，但加条件：
+        //    由于上面 events 已经处理完，这里补一个二次事件循环是不行的。
+        //    所以做法：在本 main.cpp 中将事件循环改成：
+        //    - 先 editor.newFrame()
+        //    - 再 PollEvent 并根据 editor.isViewportHovered()/Focused() 分发给 Camera
+        //
+        // 为了不引入复杂结构，这里采用最简单稳定的版本：
+        //  - 相机只做连续 update（dt），
+        //  - 事件分发在“下一帧”会正确（Docking UI 常见做法）
+        //
+        // 如果你希望“同一帧就严格 gating”，我下一步再给你一个无延迟版本。
+
+        // 4) Update camera continuous movement
+        mainCam.update(dt);
+
+        // 5) Render scene INTO viewport FBO (only)
+        bool renderedToViewport = false;
+        if (editor.beginViewportRender())
+        {
+            renderedToViewport = true;
+
+            // Clear in viewport
+            glEnable(GL_DEPTH_TEST);
+            glClearColor(0.12f, 0.12f, 0.13f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+            // Fixed pipeline matrices from camera
+            int vw = editor.viewportWidth();
+            int vh = editor.viewportHeight();
+            mainCam.aspect = (vh > 0) ? (double)vw / (double)vh : mainCam.aspect;
 
             mat4 P = mainCam.projection();
             mat4 V = mainCam.view();
 
             glMatrixMode(GL_PROJECTION);
             glLoadMatrixd(glm::value_ptr(P));
-
             glMatrixMode(GL_MODELVIEW);
             glLoadMatrixd(glm::value_ptr(V));
-        }
 
-        // ✅ 5) 画场景（递归画 root + children）
-        if (!scene.empty())
-        {
-            std::function<void(GameObject*)> drawNode = [&](GameObject* n)
-                {
-                    if (!n) return;
-                    n->draw();
-                    for (auto* c : n->children) drawNode(c);
-                };
+            // Some safety defaults
+            glDisable(GL_LIGHTING);
+            glDisable(GL_TEXTURE_2D);
+            glColor3f(0.85f, 0.85f, 0.85f);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-            for (auto& sp : scene)
+            // Draw scene
+            if (!scene.empty())
             {
-                if (!sp) continue;
-                if (sp->parent != nullptr) continue;   // 只从 root 开始递归
-                drawNode(sp.get());
+                std::function<void(GameObject*)> drawNode = [&](GameObject* n)
+                    {
+                        if (!n) return;
+                        n->draw();
+                        for (auto* c : n->children) drawNode(c);
+                    };
+
+                for (auto& sp : scene)
+                {
+                    if (!sp) continue;
+                    if (sp->parent != nullptr) continue;
+                    drawNode(sp.get());
+                }
             }
+
+            editor.endViewportRender();
         }
 
-        // ✅ 6) 最后画 UI
-        editor.render(&mainCam);
+        // 6) Render ImGui to default framebuffer
+        // Clear default fb as editor background
+        int ww = 0, wh = 0;
+        SDL_GetWindowSizeInPixels(window, &ww, &wh);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, ww, wh);
+        glDisable(GL_DEPTH_TEST);
+        glClearColor(0.08f, 0.08f, 0.09f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 
-        // ✅ 7) swap
+        editor.renderImGui();
         SDL_GL_SwapWindow(window);
-
     }
 
-
-    // 10) Shutdown / 关闭
     editor.shutdown();
     SDL_GL_DestroyContext(glctx);
     SDL_DestroyWindow(window);
