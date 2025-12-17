@@ -825,6 +825,16 @@ void EditorWindows::reorderRoot(GameObject* node, int newIndex) {
 void EditorWindows::drawAssets() {
     ImGui::SetNextWindowSize(ImVec2(350, 500), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Assets", &show_assets_)) { ImGui::End(); return; }
+    {
+        ImVec2 pos = ImGui::GetWindowPos();
+        ImVec2 size = ImGui::GetWindowSize();
+        assetsViewBounds_.x = pos.x;
+        assetsViewBounds_.y = pos.y;
+        assetsViewBounds_.w = size.x;
+        assetsViewBounds_.h = size.y;
+        assetsViewBounds_.isHovered = ImGui::IsWindowHovered();
+        assetsViewBounds_.isFocused = ImGui::IsWindowFocused();
+    }
 
     // Info box
     ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Drag and drop files here to import");
@@ -1018,4 +1028,9 @@ void EditorWindows::drawSceneWindow(unsigned int texID, int w, int h) {
         sceneViewBounds_.isFocused = ImGui::IsWindowFocused(); 
     }
     ImGui::End();
+}
+
+
+const EditorWindows::ViewportBounds& EditorWindows::getAssetsViewBounds() const {
+    return assetsViewBounds_;
 }

@@ -209,6 +209,29 @@ static void handleDropFile(const string& filepath) {
     }
 }
 
+static std::string copyIntoAssets(const std::string& srcPath) {
+    namespace fs = std::filesystem;
+    try {
+        fs::path src(srcPath);
+        if (!fs::exists(src) || !fs::is_regular_file(src)) return "";
+        std::string assets = AssetDatabase::instance().getAssetsPath();
+        fs::path dest = fs::path(assets) / src.filename();
+        if (fs::exists(dest)) {
+            std::string stem = dest.stem().string();
+            std::string ext = dest.has_extension() ? dest.extension().string() : "";
+            int i = 1;
+            while (fs::exists(dest)) {
+                dest = fs::path(assets) / (stem + "_" + std::to_string(i) + ext);
+                ++i;
+            }
+        }
+        fs::copy_file(src, dest, fs::copy_options::overwrite_existing);
+        return fs::absolute(dest).string();
+    } catch (...) {
+        return "";
+    }
+}
+
 static void draw_triangle(const glm::u8vec3& color, const vec3& center, double size) {
     glColor3ub(color.r, color.g, color.b);
     glBegin(GL_TRIANGLES);
@@ -407,6 +430,7 @@ static void handle_input(double deltaTime) {
     
     // Bounds
     const auto& sceneBounds = editor.getSceneViewBounds();
+    const auto& assetsBounds = editor.getAssetsViewBounds();
     
     bool allowEditorInput = !isPlaying; 
 
@@ -415,6 +439,8 @@ static void handle_input(double deltaTime) {
     SDL_GetMouseState(&mx, &my);
     bool insideScene = (mx >= sceneBounds.x && mx <= sceneBounds.x + sceneBounds.w &&
          my >= sceneBounds.y && my <= sceneBounds.y + sceneBounds.h);
+    bool insideAssets = (mx >= assetsBounds.x && mx <= assetsBounds.x + assetsBounds.w &&
+         my >= assetsBounds.y && my <= assetsBounds.y + assetsBounds.h);
     
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL3_ProcessEvent(&event);
@@ -422,7 +448,17 @@ static void handle_input(double deltaTime) {
         if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(window)) running = false;
         if (event.type == SDL_EVENT_DROP_FILE && event.drop.data) {
             string droppedFile = event.drop.data;
-            handleDropFile(droppedFile);
+            if (insideAssets) {
+                std::string copied = copyIntoAssets(droppedFile);
+                if (!copied.empty()) {
+                    AssetDatabase::instance().importAsset(copied);
+                    LOG_INFO(std::string("Imported into Assets: ") + copied);
+                } else {
+                    LOG_ERROR(std::string("Failed to import into Assets: ") + droppedFile);
+                }
+            } else {
+                handleDropFile(droppedFile);
+            }
         }
     
         // EDITOR CAMERA INPUT - Solo si estamos en la ventana de Scene y permitido

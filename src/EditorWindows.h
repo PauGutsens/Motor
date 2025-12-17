@@ -54,6 +54,7 @@ public:
     void setSceneViewTexture(unsigned int texID, int w, int h) { sceneTexID_ = texID; sceneW_ = w; sceneH_ = h; }
     void drawSceneWindow(unsigned int texID, int w, int h);
     const ViewportBounds& getSceneViewBounds() const { return sceneViewBounds_; } // Accessor for Scene Bounds
+    const ViewportBounds& getAssetsViewBounds() const;
 
 
 private:
@@ -96,6 +97,7 @@ private:
     int sceneW_ = 0;
     int sceneH_ = 0;
     ViewportBounds sceneViewBounds_;
+    ViewportBounds assetsViewBounds_;
 
     // Assets window state
     std::unordered_set<std::string> expanded_asset_folders_;
