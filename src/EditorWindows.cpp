@@ -218,25 +218,23 @@ void EditorWindows::drawConsole() {
     ImGui::SetNextWindowSize(ImVec2(600, 220), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Console", &show_console_)) { ImGui::End(); return; }
     static ImGuiTextFilter filter;
-    static bool auto_scroll = true;
     filter.Draw("Filter");
     ImGui::Separator();
-    ImGui::BeginChild("scroll_region", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-    auto logs = Logger::instance().snapshot();
-    for (auto& e : logs) {
-        if (!filter.PassFilter(e.text.c_str())) continue;
-        ImVec4 color = ImVec4(1, 1, 1, 1);
-        if (e.level == LogLevel::Warning) color = ImVec4(1, 1, 0, 1);
-        if (e.level == LogLevel::Error)   color = ImVec4(1, 0.5f, 0.5f, 1);
-        ImGui::PushStyleColor(ImGuiCol_Text, color);
-        ImGui::TextUnformatted(e.text.c_str());
-        ImGui::PopStyleColor();
+    std::string joined;
+    {
+        auto logs = Logger::instance().snapshot();
+        joined.reserve(1024);
+        for (auto& e : logs) {
+            if (!filter.PassFilter(e.text.c_str())) continue;
+            joined += e.text;
+            joined += "\n";
+        }
     }
-    if (auto_scroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-        ImGui::SetScrollHereY(1.0f);
-    ImGui::EndChild();
-    ImGui::Checkbox("Auto-scroll", &auto_scroll);
-    ImGui::SameLine();
+    static std::vector<char> consoleBuf;
+    consoleBuf.assign(joined.begin(), joined.end());
+    consoleBuf.push_back('\0');
+    ImGui::InputTextMultiline("##console_copy", consoleBuf.data(), (size_t)consoleBuf.size(), ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
+    ImGui::Separator();
     if (ImGui::Button("Clear")) {
         Logger::instance().setMaxEntries(0);
         Logger::instance().setMaxEntries(1000);
@@ -669,21 +667,22 @@ void EditorWindows::drawInspector() {
 
 
 std::string EditorWindows::getAssetsPath() {
-    auto cwd = fs::current_path();
+    if (asset_database_) return asset_database_->getAssetsPath();
     auto try_find = [](fs::path start)->std::string {
         fs::path p = start;
-        for (int i = 0; i < 6; ++i) {
+        for (int i = 0; i < 8; ++i) {
             fs::path c = p / "Assets";
-            if (fs::exists(c) && fs::is_directory(c))return c.string();
-            if (!p.has_parent_path())break;
+            if (fs::exists(c) && fs::is_directory(c)) return fs::absolute(c).string();
+            if (!p.has_parent_path()) break;
             p = p.parent_path();
         }
         return "";
-        };
-    if (auto s = try_find(cwd); !s.empty())return s;
-    const char* base = SDL_GetBasePath();
-    if (base)if (auto s = try_find(fs::path(base)); !s.empty())return s;
-    return "Assets";
+    };
+    if (auto s = try_find(fs::current_path()); !s.empty()) return s;
+    if (const char* base = SDL_GetBasePath()) {
+        if (auto s = try_find(fs::path(base)); !s.empty()) return s;
+    }
+    return fs::absolute(fs::path("Assets")).string();
 }
 
 void EditorWindows::loadPrimitiveFromAssets(const std::string& name) {
@@ -915,10 +914,10 @@ void EditorWindows::drawAssetTree(const std::string& folderPath, int depth) {
      drawAssetTree(entry.path().string(), depth + 1);
         ImGui::TreePop();
            }
-     } else {
-       // Asset file
-           std::string fullPath = entry.path().string();
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        } else {
+            // Asset file
+            std::string fullPath = entry.path().string();
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
                 
         // Highlight if selected
           bool isSelected = (selected_asset_ == fullPath);
@@ -926,22 +925,28 @@ void EditorWindows::drawAssetTree(const std::string& folderPath, int depth) {
   ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
            }
 
-     ImGui::TreeNodeEx(name.c_str(), flags);
+            ImGui::TreeNodeEx(name.c_str(), flags);
 
-     if (isSelected) {
-          ImGui::PopStyleColor();
-    }
+            if (isSelected) {
+                ImGui::PopStyleColor();
+            }
         
            // Selection and interaction
-      if (ImGui::IsItemClicked()) {
-       selected_asset_ = fullPath;
-              }
+            if (ImGui::IsItemClicked()) {
+                selected_asset_ = fullPath;
+            }
 
-      // Context menu for asset
-    if (ImGui::BeginPopupContextItem()) {
-   AssetMeta* meta = asset_database_->findAssetBySourcePath(fullPath);
-  
-      if (meta) {
+            if (ImGui::BeginDragDropSource()) {
+                ImGui::SetDragDropPayload("ASSET_PATH", fullPath.c_str(), (int)fullPath.size() + 1);
+                ImGui::TextUnformatted(name.c_str());
+                ImGui::EndDragDropSource();
+            }
+
+            // Context menu for asset
+            if (ImGui::BeginPopupContextItem()) {
+                AssetMeta* meta = asset_database_->findAssetBySourcePath(fullPath);
+
+                if (meta) {
       ImGui::Text("Type: %s", meta->assetType.c_str());
         ImGui::Text("GUID: %.8s", meta->guid.c_str());
             if (show_asset_refs_) {

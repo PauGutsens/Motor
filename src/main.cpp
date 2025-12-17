@@ -57,31 +57,32 @@ static string tempScenePath = "temp.scene";
 
 static std::string getAssetsPath() {
     namespace fs = std::filesystem;
-    auto cwd = fs::current_path();
-    const char* base = SDL_GetBasePath();
-    std::string baseStr = base ? base : "";
-    std::cout << "[Path] CWD        = " << cwd.string() << std::endl;
-    std::cout << "[Path] SDL base   = " << baseStr << std::endl;
     auto try_find = [](fs::path start)->std::string {
         fs::path p = start;
-        for (int i = 0; i < 6; ++i) {
-            fs::path candidate = p / "Assets";
-            if (fs::exists(candidate) && fs::is_directory(candidate)) {
-                std::cout << "[Path] Found Assets at: " << candidate.string() << std::endl;
-                return candidate.string();
-            }
+        for (int i = 0; i < 8; ++i) {
+            fs::path c = p / "Assets";
+            if (fs::exists(c) && fs::is_directory(c)) return fs::absolute(c).string();
             if (!p.has_parent_path()) break;
             p = p.parent_path();
         }
         return "";
-        };
-    if (auto s = try_find(cwd); !s.empty()) return s;
-    if (!baseStr.empty()) {
-        if (auto s = try_find(fs::path(baseStr)); !s.empty()) return s;
+    };
+    if (auto s = try_find(fs::current_path()); !s.empty()) return s;
+    if (const char* base = SDL_GetBasePath()) {
+        if (auto s = try_find(fs::path(base)); !s.empty()) return s;
     }
+    return fs::absolute(fs::path("Assets")).string();
+}
 
-    std::cout << "[Path] Assets NOT found; fallback to literal 'Assets'." << std::endl;
-    return "Assets";
+static std::string getLibraryPathPortable(const std::string& assetsPath) {
+    namespace fs = std::filesystem;
+    std::string pref = SDL_GetPrefPath("Motor", "Motor");
+    if (!pref.empty()) {
+        fs::path p = fs::path(pref) / "Library";
+        return fs::absolute(p).string();
+    }
+    fs::path p = fs::path(assetsPath) / "Library";
+    return fs::absolute(p).string();
 }
 
 static void loadModelToScene(const std::string& filename, const std::string& namePrefix) {
@@ -721,7 +722,7 @@ int main(int argc, char* argv[]) {
     
     // Initialize AssetDatabase
     std::string assetsPath = getAssetsPath();
-    std::string libraryPath = fs::absolute(fs::path(assetsPath).parent_path() / "Library").string();
+    std::string libraryPath = getLibraryPathPortable(assetsPath);
     AssetDatabase::instance().initialize(assetsPath, libraryPath);
     editor.setAssetDatabase(&AssetDatabase::instance());  // Connect to editor
 
