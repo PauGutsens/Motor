@@ -92,6 +92,21 @@ void AssetDatabase::loadAssetMetadata(const fs::path& assetPath) {
       meta.guid = AssetMeta::generateGUID();
         meta.libraryPath = library_path_ + "/" + meta.guid;
         meta.referenceCount = 0;
+        if (meta.assetType == "Texture") {
+            meta.texMinFilter = "Linear";
+            meta.texMagFilter = "Linear";
+            meta.texWrapS = "Repeat";
+            meta.texWrapT = "Repeat";
+            meta.texFlipX = false;
+            meta.texFlipY = false;
+            meta.texMipmaps = true;
+        } else if (meta.assetType == "Model") {
+            meta.meshScale = 1.0;
+            meta.axisUp = "Y";
+            meta.axisForward = "-Z";
+            meta.ignoreCameras = true;
+            meta.ignoreLights = true;
+        }
     }
 
     // Update timestamp

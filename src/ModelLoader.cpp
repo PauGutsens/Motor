@@ -1,10 +1,12 @@
 #include "ModelLoader.h"
 #include "TextureLoader.h"
+#include "AssetMeta.h"
 #include "Mesh.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <assimp/material.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <GL/glew.h>
 #include <filesystem>
 #include <iostream>
@@ -86,6 +88,8 @@ std::shared_ptr<Mesh> ModelLoader::processMesh(void* meshPtr, const void* sceneP
 
 std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& path) {
     std::vector<std::shared_ptr<Mesh>> meshes;
+    AssetMeta meta;
+    bool hasMeta = AssetMeta::loadFromFile(path + ".meta", meta);
     Assimp::Importer importer;
     
     const aiScene* scene = importer.ReadFile(
@@ -113,6 +117,29 @@ std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& pat
         if (am->mMaterialIndex < scene->mNumMaterials) {
             const aiMaterial* mat = scene->mMaterials[am->mMaterialIndex];
             AssignDiffuseTextureIfAny(mat, path, m);
+        }
+        if (hasMeta) {
+            double s = meta.meshScale;
+            glm::dmat4 axis = glm::dmat4(1.0);
+            if (meta.axisUp == "Z") {
+                axis = glm::rotate(axis, glm::radians(90.0), glm::dvec3(1,0,0));
+            }
+            if (meta.axisForward == "+Z") {
+                axis = axis * glm::dmat4(1.0);
+            } else if (meta.axisForward == "-Z") {
+                axis = glm::rotate(axis, glm::radians(180.0), glm::dvec3(0,1,0));
+            } else if (meta.axisForward == "+X") {
+                axis = glm::rotate(axis, glm::radians(90.0), glm::dvec3(0,1,0));
+            } else if (meta.axisForward == "-X") {
+                axis = glm::rotate(axis, glm::radians(-90.0), glm::dvec3(0,1,0));
+            }
+            for (auto& v : m->vertices) {
+                glm::dvec4 p = axis * glm::dvec4(v.position, 1.0);
+                v.position = glm::dvec3(p) * s;
+                glm::dvec4 n = axis * glm::dvec4(v.normal, 0.0);
+                v.normal = glm::normalize(glm::dvec3(n));
+            }
+            m->computeAABB();
         }
         meshes.push_back(m);
     }

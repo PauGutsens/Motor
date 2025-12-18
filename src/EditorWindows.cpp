@@ -932,6 +932,41 @@ void EditorWindows::drawAssets() {
             ImGui::Text("Type: %s", meta->assetType.c_str());
             ImGui::Text("GUID: %.8s", meta->guid.c_str());
             if (show_asset_refs_) ImGui::Text("References: %d", meta->referenceCount);
+            ImGui::Separator();
+            if (meta->assetType == "Texture") {
+                const char* minOpts[] = { "Nearest", "Linear", "Trilinear" };
+                const char* magOpts[] = { "Nearest", "Linear" };
+                const char* wrapOpts[] = { "Repeat", "ClampToEdge", "MirroredRepeat" };
+                int minIdx = 1, magIdx = 1, wrapSIdx = 0, wrapTIdx = 0;
+                if (meta->texMinFilter == "Nearest") minIdx = 0; else if (meta->texMinFilter == "Trilinear") minIdx = 2;
+                if (meta->texMagFilter == "Nearest") magIdx = 0;
+                if (meta->texWrapS == "ClampToEdge") wrapSIdx = 1; else if (meta->texWrapS == "MirroredRepeat") wrapSIdx = 2;
+                if (meta->texWrapT == "ClampToEdge") wrapTIdx = 1; else if (meta->texWrapT == "MirroredRepeat") wrapTIdx = 2;
+                if (ImGui::Combo("Min Filter", &minIdx, minOpts, 3)) meta->texMinFilter = minOpts[minIdx];
+                if (ImGui::Combo("Mag Filter", &magIdx, magOpts, 2)) meta->texMagFilter = magOpts[magIdx];
+                if (ImGui::Combo("Wrap S", &wrapSIdx, wrapOpts, 3)) meta->texWrapS = wrapOpts[wrapSIdx];
+                if (ImGui::Combo("Wrap T", &wrapTIdx, wrapOpts, 3)) meta->texWrapT = wrapOpts[wrapTIdx];
+                ImGui::Checkbox("Flip X", &meta->texFlipX);
+                ImGui::Checkbox("Flip Y", &meta->texFlipY);
+                ImGui::Checkbox("Mipmaps", &meta->texMipmaps);
+            } else if (meta->assetType == "Model") {
+                float scale = (float)meta->meshScale;
+                if (ImGui::DragFloat("Scale", &scale, 0.01f, 0.0001f, 1000.0f)) meta->meshScale = scale;
+                const char* upOpts[] = { "Y", "Z" };
+                const char* fwdOpts[] = { "+Z", "-Z", "+X", "-X" };
+                int upIdx = meta->axisUp == "Z" ? 1 : 0;
+                int fwdIdx = 0;
+                if (meta->axisForward == "-Z") fwdIdx = 1;
+                else if (meta->axisForward == "+X") fwdIdx = 2;
+                else if (meta->axisForward == "-X") fwdIdx = 3;
+                if (ImGui::Combo("Up", &upIdx, upOpts, 2)) meta->axisUp = upOpts[upIdx];
+                if (ImGui::Combo("Forward", &fwdIdx, fwdOpts, 4)) meta->axisForward = fwdOpts[fwdIdx];
+                ImGui::Checkbox("Ignore Cameras", &meta->ignoreCameras);
+                ImGui::Checkbox("Ignore Lights", &meta->ignoreLights);
+            }
+            std::string metaPath = selected_asset_ + ".meta";
+            AssetMeta::saveToFile(metaPath, *meta);
+            if (asset_database_) asset_database_->refresh();
         }
     }
     ImGui::End();
