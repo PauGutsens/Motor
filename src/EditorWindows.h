@@ -8,6 +8,7 @@
 #include "GameObject.h"
 #include "Logger.h"
 #include <SDL3/SDL.h>
+#include <imgui.h>
 
 
 class AssetDatabase; // Forward declaration
@@ -55,6 +56,7 @@ public:
     void drawSceneWindow(unsigned int texID, int w, int h);
     const ViewportBounds& getSceneViewBounds() const { return sceneViewBounds_; } // Accessor for Scene Bounds
     const ViewportBounds& getAssetsViewBounds() const;
+    const std::string& getHoveredAssetFolder() const;
 
 
 private:
@@ -98,6 +100,10 @@ private:
     int sceneH_ = 0;
     ViewportBounds sceneViewBounds_;
     ViewportBounds assetsViewBounds_;
+    std::string hoveredAssetFolder_;
+    GLuint previewTexID_ = 0;
+    int previewW_ = 0, previewH_ = 0;
+    ImGuiTextFilter assetsFilter_;
 
     // Assets window state
     std::unordered_set<std::string> expanded_asset_folders_;

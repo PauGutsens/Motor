@@ -1,4 +1,4 @@
-﻿#include "EditorWindows.h"
+#include "EditorWindows.h"
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_opengl3.h>
@@ -219,6 +219,8 @@ void EditorWindows::drawConsole() {
     if (!ImGui::Begin("Console", &show_console_)) { ImGui::End(); return; }
     static ImGuiTextFilter filter;
     filter.Draw("Filter");
+    ImGui::Separator();
+    assetsFilter_.Draw("Filter##assets");
     ImGui::Separator();
     std::string joined;
     {
@@ -878,9 +880,9 @@ void EditorWindows::drawAssets() {
       ImGui::EndDragDropTarget();
             }
 
- if (rootOpen) {
-       drawAssetTree(assetsPath, 0);
-            ImGui::TreePop();
+            if (rootOpen) {
+                drawAssetTree(assetsPath, 0);
+                ImGui::TreePop();
             }
         } else {
     ImGui::TextDisabled("Assets folder not found");
@@ -890,6 +892,48 @@ void EditorWindows::drawAssets() {
     }
 
     ImGui::EndChild();
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !selected_asset_.empty()) {
+            ImGui::OpenPopup("Confirm Asset Delete");
+        }
+    }
+    if (ImGui::BeginPopupModal("Confirm Asset Delete", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        AssetMeta* meta = asset_database_ ? asset_database_->findAssetBySourcePath(selected_asset_) : nullptr;
+        ImGui::Text("Delete '%s'?", selected_asset_.c_str());
+        if (meta) {
+            ImGui::Text("Type: %s", meta->assetType.c_str());
+            ImGui::Text("GUID: %.8s", meta->guid.c_str());
+            if (show_asset_refs_) ImGui::Text("References: %d", meta->referenceCount);
+        }
+        bool canDelete = !(meta && meta->referenceCount > 0);
+        ImGui::BeginDisabled(!canDelete);
+        if (ImGui::Button("Delete", ImVec2(120, 0))) {
+            if (asset_database_ && asset_database_->deleteAsset(selected_asset_)) {
+                selected_asset_.clear();
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        if (!canDelete) {
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(1,0.8f,0,1), "Cannot delete: asset has active references.");
+        }
+        ImGui::EndPopup();
+    }
+    if (!selected_asset_.empty()) {
+        ImGui::Separator();
+        ImGui::Text("Selected: %s", selected_asset_.c_str());
+        AssetMeta* meta = asset_database_ ? asset_database_->findAssetBySourcePath(selected_asset_) : nullptr;
+        if (meta) {
+            ImGui::Text("Type: %s", meta->assetType.c_str());
+            ImGui::Text("GUID: %.8s", meta->guid.c_str());
+            if (show_asset_refs_) ImGui::Text("References: %d", meta->referenceCount);
+        }
+    }
     ImGui::End();
 }
 
@@ -903,15 +947,16 @@ void EditorWindows::drawAssetTree(const std::string& folderPath, int depth) {
          
             // Skip .meta files and hidden files
             if (name.empty() || name[0] == '.') continue;
-   if (name.size() >= 5 && name.substr(name.size() - 5) == ".meta") continue;
+            if (name.size() >= 5 && name.substr(name.size() - 5) == ".meta") continue;
 
       if (entry.is_directory()) {
     // Folder node
     bool isOpen = expanded_asset_folders_.count(entry.path().string()) > 0;
    ImGui::SetNextItemOpen(isOpen);
         
-   if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-       if (ImGui::IsItemClicked()) {
+            if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (ImGui::IsItemHovered()) hoveredAssetFolder_ = entry.path().string();
+                if (ImGui::IsItemClicked()) {
                   // Toggle expanded state
         std::string fullPath = entry.path().string();
        if (isOpen) {
@@ -919,14 +964,15 @@ void EditorWindows::drawAssetTree(const std::string& folderPath, int depth) {
      } else {
  expanded_asset_folders_.insert(fullPath);
           }
-       }
+                }
            
-     drawAssetTree(entry.path().string(), depth + 1);
-        ImGui::TreePop();
-           }
+                drawAssetTree(entry.path().string(), depth + 1);
+                ImGui::TreePop();
+            }
         } else {
             // Asset file
             std::string fullPath = entry.path().string();
+            if (!assetsFilter_.PassFilter(name.c_str())) { continue; }
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
                 
         // Highlight if selected
@@ -965,12 +1011,15 @@ void EditorWindows::drawAssetTree(const std::string& folderPath, int depth) {
            ImGui::Separator();
        }
 
-      if (ImGui::MenuItem("Show in Explorer")) {
+                    if (ImGui::MenuItem("Show in Explorer")) {
             // Platform-specific file explorer open
                    #ifdef _WIN32
-         system(("explorer /select,\"" + fullPath + "\"").c_str());
+        system(("explorer /select,\"" + fullPath + "\"").c_str());
       #endif
-     }
+    }
+                    if (ImGui::MenuItem("Copy Path")) {
+                        ImGui::SetClipboardText(fullPath.c_str());
+                    }
 
         if (ImGui::MenuItem("Delete")) {
               if (meta && meta->referenceCount > 0) {
@@ -1033,4 +1082,7 @@ void EditorWindows::drawSceneWindow(unsigned int texID, int w, int h) {
 
 const EditorWindows::ViewportBounds& EditorWindows::getAssetsViewBounds() const {
     return assetsViewBounds_;
+}
+const std::string& EditorWindows::getHoveredAssetFolder() const {
+    return hoveredAssetFolder_;
 }

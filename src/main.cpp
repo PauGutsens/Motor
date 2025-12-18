@@ -209,19 +209,21 @@ static void handleDropFile(const string& filepath) {
     }
 }
 
-static std::string copyIntoAssets(const std::string& srcPath) {
+static std::string copyIntoAssets(const std::string& srcPath, const std::string& targetFolder = "") {
     namespace fs = std::filesystem;
     try {
         fs::path src(srcPath);
         if (!fs::exists(src) || !fs::is_regular_file(src)) return "";
         std::string assets = AssetDatabase::instance().getAssetsPath();
-        fs::path dest = fs::path(assets) / src.filename();
+        fs::path base = targetFolder.empty() ? fs::path(assets) : fs::path(targetFolder);
+        if (!fs::exists(base)) base = fs::path(assets);
+        fs::path dest = base / src.filename();
         if (fs::exists(dest)) {
             std::string stem = dest.stem().string();
             std::string ext = dest.has_extension() ? dest.extension().string() : "";
             int i = 1;
             while (fs::exists(dest)) {
-                dest = fs::path(assets) / (stem + "_" + std::to_string(i) + ext);
+                dest = base / (stem + "_" + std::to_string(i) + ext);
                 ++i;
             }
         }
@@ -449,9 +451,11 @@ static void handle_input(double deltaTime) {
         if (event.type == SDL_EVENT_DROP_FILE && event.drop.data) {
             string droppedFile = event.drop.data;
             if (insideAssets) {
-                std::string copied = copyIntoAssets(droppedFile);
+                std::string target = editor.getHoveredAssetFolder();
+                std::string copied = copyIntoAssets(droppedFile, target);
                 if (!copied.empty()) {
                     AssetDatabase::instance().importAsset(copied);
+                    AssetDatabase::instance().refresh();
                     LOG_INFO(std::string("Imported into Assets: ") + copied);
                 } else {
                     LOG_ERROR(std::string("Failed to import into Assets: ") + droppedFile);
