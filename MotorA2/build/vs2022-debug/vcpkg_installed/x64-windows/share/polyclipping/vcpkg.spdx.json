@@ -3,13 +3,13 @@
   "spdxVersion": "SPDX-2.2",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "documentNamespace": "https://spdx.org/spdxdocs/polyclipping-x64-windows-6.4.2#13-afe73f92-af25-4c53-a04c-4bdc00d748e6",
-  "name": "polyclipping:x64-windows@6.4.2#13 255c1cb8dbda8ad2e250c9d27516d296d3535e37c8c49d82ce2f90e298f6a399",
+  "documentNamespace": "https://spdx.org/spdxdocs/polyclipping-x64-windows-6.4.2#13-ef1376cc-30cf-4412-8a88-8c4eda2d1891",
+  "name": "polyclipping:x64-windows@6.4.2#13 4059e258d93e09c3611ad5d8941789d9d252cf4f5b75a7a62e660cecd83bd339",
   "creationInfo": {
     "creators": [
-      "Tool: vcpkg-2025-12-05-d84fb805651077f4ed3a97b61fbad2b513462f8b"
+      "Tool: vcpkg-2025-12-16-44bb3ce006467fc13ba37ca099f64077b8bbf84d"
     ],
-    "created": "2025-12-10T21:58:39Z"
+    "created": "2025-12-19T17:34:31Z"
   },
   "relationships": [
     {
@@ -124,7 +124,7 @@
     {
       "name": "polyclipping:x64-windows",
       "SPDXID": "SPDXRef-binary",
-      "versionInfo": "255c1cb8dbda8ad2e250c9d27516d296d3535e37c8c49d82ce2f90e298f6a399",
+      "versionInfo": "4059e258d93e09c3611ad5d8941789d9d252cf4f5b75a7a62e660cecd83bd339",
       "downloadLocation": "NONE",
       "licenseConcluded": "BSL-1.0",
       "licenseDeclared": "NOASSERTION",
@@ -238,7 +238,7 @@
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "957e1637ab4b9fdacad5aa1339067c9cf6f7754066c126f2682c2e4dcd39a320"
+          "checksumValue": "bad3c343c65fa7d13d4eeeec9f4781af6293969ed32971c9c21d58f7537b2f6d"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -274,7 +274,7 @@
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "98c3a6aa4db755f058b08fdcbf969b07bd4dd4f8818c7cd7425fb33aa5915c6e"
+          "checksumValue": "f5fabc709af7f644f67bc2f9e8135dfce5a345439d5eec43e4eb674574438e6d"
         }
       ],
       "licenseConcluded": "NOASSERTION",

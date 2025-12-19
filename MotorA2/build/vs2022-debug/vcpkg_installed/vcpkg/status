@@ -2,7 +2,7 @@ Package: vcpkg-cmake
 Version: 2024-04-23
 Architecture: x64-windows
 Multi-Arch: same
-Abi: bc36c5eaca62d8f1e891d66e597240fd6ab95ac0f78fa33761830e914491137f
+Abi: 15212c799cc3dbdf28661f31a3aeba90f4e49547835d2c610050d627defa9033
 Status: install ok installed
 
 Package: zlib
@@ -10,7 +10,7 @@ Version: 1.3.1
 Depends: vcpkg-cmake
 Architecture: x64-windows
 Multi-Arch: same
-Abi: c9502eeb256f9caabdc0c65ff6870517653f038ae6bf2c58633a933e5117fce8
+Abi: bb2807399389d9d073daca5fd718f639b3e745fe6bc3559e8dabf400b59baa37
 Description: A compression library
 Status: install ok installed
 
@@ -18,7 +18,7 @@ Package: vcpkg-cmake-config
 Version: 2024-05-23
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 12aa778a066b3996d575a4d4be855285b854bb25f544d9da856e5e150024cb15
+Abi: 517e9108d3520c31b89dd44997a6a02473faeb6c3fb7a2d1bdb548138577a29f
 Status: install ok installed
 
 Package: utfcpp
@@ -26,7 +26,7 @@ Version: 4.0.6
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 3054617e157bd149e9f8d52821e1c1da0f102c35e6358a98d810706bb0ec5df4
+Abi: 34eb2aebab36894fd02fe8d688839badd556e8331b1c50cd9da48b396361b7db
 Description: UTF-8 with C++ in a Portable Way
 Status: install ok installed
 
@@ -35,7 +35,7 @@ Version: 2024-07-29
 Port-Version: 1
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 3eef09b9cb96687a9a4cd1512b8791f7724707246f1e73289aeb06f34744bf1e
+Abi: 06d1e9d009e372c3439be7c408a8bb1df592e3b4265f29ea8088845760a9ac99
 Description: public domain header-only libraries
 Status: install ok installed
 
@@ -44,7 +44,7 @@ Version: 2025-02-26
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 5e135925b2115db12d63f9ede0599f4a54d90dd0df767f02383da50a30a9d9ca
+Abi: 4f572caa81060b1eea83cf75866504c384428b6fae561da4143747f17b4c480d
 Description: A fast JSON parser/generator for C++ with both SAX/DOM style API <http://rapidjson.org/>
 Status: install ok installed
 
@@ -54,7 +54,7 @@ Port-Version: 1
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 71eac8139be0fb423b93529db8d67b145cf27248b63698924a19d57ee33e5773
+Abi: 7c7bf35e635208f00de3e47a33cf3edf04b20547b455ee0a8a99b5cb87fd4a69
 Description: Light-weight, simple and fast XML parser for C++ with XPath support
 Status: install ok installed
 
@@ -64,7 +64,7 @@ Port-Version: 13
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 255c1cb8dbda8ad2e250c9d27516d296d3535e37c8c49d82ce2f90e298f6a399
+Abi: 4059e258d93e09c3611ad5d8941789d9d252cf4f5b75a7a62e660cecd83bd339
 Description: The Clipper library performs clipping and offsetting for both lines and polygons. All four boolean clipping operations are supported - intersection, union, difference and exclusive-or. Polygons can be of any shape including self-intersecting polygons.
 Status: install ok installed
 
@@ -73,7 +73,7 @@ Version: 2025-05-29
 Depends: vcpkg-cmake
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 48560247ecc2156cda43da22148e81e036c6c8c84d450f8552d805e1bcfad1b9
+Abi: b86235f00fb2c3bfb2a73ce25e13df136aa8a7192227bd51987a16fefeaa6bd6
 Status: install ok installed
 
 Package: minizip
@@ -82,7 +82,7 @@ Port-Version: 1
 Depends: vcpkg-cmake, vcpkg-cmake-config, vcpkg-cmake-get-vars, zlib
 Architecture: x64-windows
 Multi-Arch: same
-Abi: b32b8d78547796e958225888b3788de7f247c9bfc823ea7597041700f536402f
+Abi: d50702e8909c83ab5eb008bd2a057f391fdc694f4b47db9119fb683d425bc626
 Description: Minizip zip file manipulation library
 Status: install ok installed
 
@@ -91,7 +91,7 @@ Version: 0.3.5
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 30077aa2bcc752f85c6dda7d9da51e24badd95a2fb7bc9f14a490122e9b11d4d
+Abi: f4fd88edc3187b3156569e44b1a88b4fc689f559d4847c5605312d529819ebb3
 Description: A portable, simple zip library written in C
 Status: install ok installed
 
@@ -101,7 +101,7 @@ Port-Version: 2
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 79a4523ab9b0a3aab7e7e51039f3ea81db90cc3ca2046a17e813ebc897362577
+Abi: b034f771fce4dcfe7dbe5aa2762f31d5640ca9b4d0152cef7eccb978ab277947
 Description: Sweep-line algorithm for constrained Delaunay triangulation
 Status: install ok installed
 
@@ -110,7 +110,7 @@ Version: 1.5.7
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 45bbdc50e88685c53f9450b0f9a58cead5f773abe3da980ee0948f0041131e27
+Abi: 6fe9db83890e6faf3d8d9b7ae198b09decd4ceeaf0a56a6bfc22aadc8c629ec8
 Description: A library for compressing and decompressing 3D geometric meshes and point clouds. It is intended to improve the storage and transmission of 3D graphics.
 Status: install ok installed
 
@@ -120,228 +120,15 @@ Port-Version: 1
 Depends: draco, jhasse-poly2tri, kubazip, minizip, polyclipping, pugixml, rapidjson, stb, utfcpp, vcpkg-cmake, vcpkg-cmake-config, zlib
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 5462571ad7d2f1c595d0fd49b66f9cdcd9ce29644a7d611df95e97f47ac48952
+Abi: 59915672a808e8abe01e69c6eb26823d261ed160ac794f2a9c9605ca7b7eaf23
 Description: The Open Asset import library
 Status: install ok installed
-
-Package: liblzma
-Version: 5.8.1
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: df9f27951cf60932bd1a4e6d0f4d9d39896fb8c11418b19723979976d6993175
-Description: Compression library with an API similar to that of zlib.
-Status: purge ok not-installed
-
-Package: libjpeg-turbo
-Version: 3.1.2
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 0ee5b051d045b064d6ae333a773d83239fe4832e415db8ff646e7a8d45f695f5
-Description: libjpeg-turbo is a JPEG image codec that uses SIMD instructions (MMX, SSE2, NEON, AltiVec) to accelerate baseline JPEG compression and decompression on x86, x86-64, ARM, and PowerPC systems.
-Status: purge ok not-installed
-
-Package: tiff
-Version: 4.7.1
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 1d102d393160165eb7102d6801d4b8a4963c75d5b6a96f4c20565facc47906db
-Description: A library that supports the manipulation of TIFF image files
-Default-Features: jpeg, lzma, zip
-Status: purge ok not-installed
-
-Package: tiff
-Feature: jpeg
-Depends: libjpeg-turbo
-Architecture: x64-windows
-Multi-Arch: same
-Description: Support JPEG compression in TIFF image files
-Status: purge ok not-installed
-
-Package: tiff
-Feature: lzma
-Depends: liblzma
-Architecture: x64-windows
-Multi-Arch: same
-Description: Support LZMA compression in TIFF image files
-Status: purge ok not-installed
-
-Package: tiff
-Feature: zip
-Depends: zlib
-Architecture: x64-windows
-Multi-Arch: same
-Description: Support ZIP/deflate compression in TIFF image files
-Status: purge ok not-installed
-
-Package: openjph
-Version: 0.25.3
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 9fbf6e34cc7966f086c810c0b8198a9cabc585bdac13de178e04c3952f7f264b
-Description: Open-source implementation of JPEG2000 Part-15 (or JPH or HTJ2K)
-Status: purge ok not-installed
-
-Package: libdeflate
-Version: 1.25
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: e72a5b6adc148a251e1578f8163eaa9f86a34b8f609d08f573edcf3a17d06468
-Description: libdeflate is a library for fast, whole-buffer DEFLATE-based compression and decompression.
-Default-Features: compression, decompression, gzip, zlib
-Status: purge ok not-installed
-
-Package: libdeflate
-Feature: compression
-Architecture: x64-windows
-Multi-Arch: same
-Description: Support compression
-Status: purge ok not-installed
-
-Package: libdeflate
-Feature: decompression
-Architecture: x64-windows
-Multi-Arch: same
-Description: Support decompression
-Status: purge ok not-installed
-
-Package: libdeflate
-Feature: gzip
-Architecture: x64-windows
-Multi-Arch: same
-Description: Support the gzip format
-Status: purge ok not-installed
-
-Package: libdeflate
-Feature: zlib
-Architecture: x64-windows
-Multi-Arch: same
-Description: Support the zlib format
-Status: purge ok not-installed
-
-Package: imath
-Version: 3.2.2
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 973f2015f93ce3af5f9fcc1fad9fe370082214fc0ee862afb4fe6751b3dfa4b1
-Description: Imath is a C++ and Python library of 2D and 3D vector, matrix, and math operations for computer graphics.
-Status: purge ok not-installed
-
-Package: openexr
-Version: 3.4.4
-Depends: imath, libdeflate, openjph, vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 0a780a0e431a56af1218c84c25da2bfe984b640d9b9b4cd6cc5f2be5d60aad67
-Description: OpenEXR is a high dynamic-range (HDR) image file format developed by Industrial Light & Magic for use in computer imaging applications
-Status: purge ok not-installed
-
-Package: libpng
-Version: 1.6.53
-Depends: vcpkg-cmake, vcpkg-cmake-config, zlib
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 2d6d921956316a12d149cdd9c62d5ec928e9f986654cf1e7986692494bf0d434
-Description: libpng is a library implementing an interface for reading and writing PNG (Portable Network Graphics) format files
-Status: purge ok not-installed
-
-Package: vcpkg-tool-meson
-Version: 1.9.0
-Port-Version: 3
-Depends: vcpkg-cmake-get-vars
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 63fa609a497dff6e5812ff2867ce45a6eaf8726326951928f2506e626941147a
-Description: Meson build system
-Status: purge ok not-installed
-
-Package: lcms
-Version: 2.17
-Depends: vcpkg-tool-meson
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 57d6781a83365dc7c98a23f891b37acfec3c790ec722e96e94aa7fa0e637cb7e
-Description: Little CMS.
-Status: purge ok not-installed
-
-Package: jasper
-Version: 4.2.8
-Depends: libjpeg-turbo, vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 5cf1aa9e4c8cd1528ef310bdb1625103dfe93ffcfa0a3f9616dbd6ee3b56f668
-Description: Open source implementation of the JPEG-2000 Part-1 standard
-Status: purge ok not-installed
-
-Package: devil
-Version: 1.8.0
-Port-Version: 13
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 85f71d056e0c9fb239a0b8d970c799c26e1075b11af4d3e324c329cff984f323
-Description: A full featured cross-platform image library
-Default-Features: jasper, lcms, libjpeg, libpng, openexr, tiff
-Status: purge ok not-installed
-
-Package: devil
-Feature: jasper
-Depends: jasper
-Architecture: x64-windows
-Multi-Arch: same
-Description: Use JasPer for .jp2 (and some .icns) support
-Status: purge ok not-installed
-
-Package: devil
-Feature: lcms
-Depends: lcms
-Architecture: x64-windows
-Multi-Arch: same
-Description: Use Little CMS for color profiles
-Status: purge ok not-installed
-
-Package: devil
-Feature: libjpeg
-Depends: libjpeg-turbo
-Architecture: x64-windows
-Multi-Arch: same
-Description: Use Libjpeg for .jpg (and some .blp) support
-Status: purge ok not-installed
-
-Package: devil
-Feature: libpng
-Depends: libpng
-Architecture: x64-windows
-Multi-Arch: same
-Description: Use Libpng for .png (and some .ico)
-Status: purge ok not-installed
-
-Package: devil
-Feature: openexr
-Depends: openexr
-Architecture: x64-windows
-Multi-Arch: same
-Description: Use openexr
-Status: purge ok not-installed
-
-Package: devil
-Feature: tiff
-Depends: tiff
-Architecture: x64-windows
-Multi-Arch: same
-Description: Use Libtiff for .tif support
-Status: purge ok not-installed
 
 Package: egl-registry
 Version: 2025-05-27
 Architecture: x64-windows
 Multi-Arch: same
-Abi: b4f6ae3c4d091569e9a9075f7279704501e7e744c790e5d8d2e4167a7315020f
+Abi: 5034a5d59a1b0f918f49a775acf1e5c6cb495aa82ffabb3579d667d14d9e87fc
 Description: EGL API and Extension Registry
 Status: install ok installed
 
@@ -350,7 +137,7 @@ Version: 2025-10-23
 Depends: egl-registry
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 80258caae58c87419888c8d97b6c7ed8d04f554f90c47b3825151d9a2acd6917
+Abi: e3e589cc1186095640c23dedf4dc54998421ae88920a1aeb135e724bef74fb75
 Description: OpenGL, OpenGL ES, and OpenGL ES-SC API and Extension Registry
 Status: install ok installed
 
@@ -360,7 +147,7 @@ Port-Version: 3
 Depends: opengl-registry
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 834eba8d84f91bd133db3dbcd0fdac7400313318c3aa5a9fc026624a4f4e5a18
+Abi: c06599c8c6e3a433e2a23325bd55e0769ece2c540ace14f73a8806924523fc41
 Description: Open Graphics Library (OpenGL)[3][4][5] is a cross-language, cross-platform application programming interface (API) for rendering 2D and 3D vector graphics.
 Status: install ok installed
 
@@ -370,7 +157,7 @@ Port-Version: 6
 Depends: opengl, vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: cd6abf3e109f174b2ef9280387c52df178b2407c6c7ebcb9316bf82fc5adf36e
+Abi: 717d0c4ae16d3c97a11e606a5dd61f72019130da3d86fb99574fbd8906e26635
 Description: The OpenGL Extension Wrangler Library (GLEW) is a cross-platform open-source C/C++ extension loading library.
 Status: install ok installed
 
@@ -379,17 +166,8 @@ Version: 1.0.2
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 0b01058ad6db0f1f4836a5a29fccb8a6591b8877724693707b87804dd8ea0132
+Abi: d175388c68060687dccedaf4c9e0d827a8f2923ee1f7772bf8b7dd5f3413eb63
 Description: OpenGL Mathematics (GLM)
-Status: install ok installed
-
-Package: imgui
-Version: 1.91.9
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 0106862766799b6441da19d080556af76c4f697ae384cc2e489f97295b313156
-Description: Bloat-free Immediate Mode Graphical User interface for C++ with minimal dependencies.
 Status: install ok installed
 
 Package: sdl3
@@ -397,8 +175,17 @@ Version: 3.2.28
 Depends: vcpkg-cmake, vcpkg-cmake-config
 Architecture: x64-windows
 Multi-Arch: same
-Abi: d8184d159722b79be2bf142d20abedfdce00f9be6ee23fc499fe420c48f1c2d5
+Abi: 1697799001d77ec8f16277b50b16c0fc60ae95977141f5963ef6aa642a5ded42
 Description: Simple DirectMedia Layer is a cross-platform development library designed to provide low level access to audio, keyboard, mouse, joystick, and graphics hardware via OpenGL and Direct3D.
+Status: install ok installed
+
+Package: imgui
+Version: 1.91.9
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: afc6ce1b560c7034966cf5268b702f4fb680802a2a16f6149ece7895dab8bb1d
+Description: Bloat-free Immediate Mode Graphical User interface for C++ with minimal dependencies.
 Status: install ok installed
 
 Package: imgui

@@ -1,81 +1,81 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\GameObject.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Core\GameObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\Logger.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Core\Logger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\Transform.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Core\Transform.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor\Camera.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Editor\Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor\EditorWindows.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Editor\EditorWindows.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\Mesh.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Renderer\Mesh.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\MeshImporter.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Renderer\MeshImporter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\ModelLoader.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Renderer\ModelLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\TextureLoader.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Renderer\TextureLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\main.cpp">
+    <ClCompile Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\AABB.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Core\AABB.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\GameObject.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Core\GameObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\Logger.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Core\Logger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\Transform.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Core\Transform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Core\types.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Core\types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor\Camera.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Editor\Camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Editor\EditorWindows.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Editor\EditorWindows.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\Mesh.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Renderer\Mesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\MeshImporter.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Renderer\MeshImporter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\ModelLoader.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Renderer\ModelLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\Source\Renderer\TextureLoader.h">
+    <ClInclude Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\Source\Renderer\TextureLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\yunqian\Documents\GitHub\Motor\MotorA2\CMakeLists.txt" />
+    <CustomBuild Include="C:\Users\Pau\source\repos\PauGutsens\Motor\MotorA2\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{FD1CCF3D-9CE5-3F9F-9346-0B98C8B7C79A}</UniqueIdentifier>
+      <UniqueIdentifier>{E7CD07C8-470A-3891-B3CC-F16B009A7FDC}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{C1C57EA7-C362-3E21-ADA2-85C088D4AB52}</UniqueIdentifier>
+      <UniqueIdentifier>{60CA7879-904C-3012-A21E-BF85C6FCC53B}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
