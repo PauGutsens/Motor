@@ -36,6 +36,10 @@ public:
     int  viewportWidth()  const { return viewportW_; }
     int  viewportHeight() const { return viewportH_; }
 
+    // Play/Pause state (foundation)
+    bool isPlaying() const { return playState_ != PlayState::Edit; }
+    bool isPaused()  const { return playState_ == PlayState::Paused; }
+
     // Viewport render target
     bool beginViewportRender();
     void endViewportRender();
@@ -54,6 +58,17 @@ private:
     std::shared_ptr<GameObject> selected_ = nullptr;
     std::vector<std::string> console_;
 
+    // -------- Scene Save/Load (custom file) --------
+    std::string currentScenePath_;
+    bool openSaveScenePopup_ = false;
+    bool openLoadScenePopup_ = false;
+    char scenePathBuf_[512] = {};
+
+    // -------- Play/Pause/Stop (foundation) --------
+    enum class PlayState { Edit, Playing, Paused };
+    PlayState playState_ = PlayState::Edit;
+    std::string playBackup_; // serialized snapshot before entering Play
+
     // Viewport
     bool viewportHovered_ = false;
     bool viewportFocused_ = false;
@@ -69,13 +84,23 @@ private:
 
     // UI
     void drawMainMenuBar();
-    /*void drawViewportWindow(float x, float y, float w, float h);*/
     void drawViewportWindow(Camera* camera, float x, float y, float w, float h);
 
     void drawHierarchy(float x, float y, float w, float h);
     void drawInspector(Camera* camera, float x, float y, float w, float h);
     void drawConsole(float x, float y, float w, float h);
     void drawAbout();
+
+    // Scene IO popups
+    std::string defaultScenePath();
+    void drawSceneIOPopups();
+    void doSaveScene(const std::string& path);
+    void doLoadScene(const std::string& path);
+
+    // Play control handlers
+    void onPlayPressed();
+    void onPausePressed();
+    void onStopPressed();
 
     // Helpers
     void log(const std::string& s);

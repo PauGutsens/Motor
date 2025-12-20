@@ -6,11 +6,18 @@
 
 #include <SDL3/SDL.h>
 #include <GL/glew.h>
-
+//
+//#include <filesystem>
+//#include <algorithm>
+//
+//#include "Camera.h"
 #include <filesystem>
 #include <algorithm>
+#include <cstdio>
 
 #include "Camera.h"
+#include "SceneIO.h"
+
 #include "ModelLoader.h"
 #include "ImGuizmo.h"
 #include <glm/gtc/type_ptr.hpp>
@@ -61,6 +68,8 @@ void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
     ImGui_ImplOpenGL3_Init("#version 330");
 
     log("Editor initialized / 编辑器初始化完成");
+    currentScenePath_ = defaultScenePath();
+    std::snprintf(scenePathBuf_, sizeof(scenePathBuf_), "%s", currentScenePath_.c_str());
 }
 
 void EditorWindows::shutdown() {
@@ -132,7 +141,11 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
         std::string goName = (meshes.size() == 1) ? baseName : (baseName + "_" + std::to_string(i));
         auto go = std::make_shared<GameObject>(goName);
         go->setMesh(mesh);
-
+        fs::path assetsRoot = fs::path(getAssetsPath());
+        std::error_code ec;
+        fs::path rel = fs::relative(p, assetsRoot, ec);
+        go->sourceModel = ec ? p.filename().string() : rel.generic_string();
+        go->sourceMeshIndex = (int)i;
         go->parent = nullptr;
         go->children.clear();
 
@@ -144,13 +157,78 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
     log(std::string("Loaded / 已加载: ") + p.string());
 }
 
+//void EditorWindows::drawMainMenuBar() {
+//    if (!ImGui::BeginMainMenuBar()) return;
+//
+//    if (ImGui::BeginMenu("File")) {
+//        if (ImGui::MenuItem("Load Street environment (FBX)")) loadStreetAsset("Street environment_V01.FBX");
+//        if (ImGui::MenuItem("Load street2 (FBX)"))             loadStreetAsset("street2.FBX");
+//        if (ImGui::MenuItem("Load scene (DAE)"))               loadStreetAsset("scene.DAE");
+//        ImGui::EndMenu();
+//    }
+//
+//    if (ImGui::BeginMenu("Window")) {
+//        ImGui::MenuItem("Console", nullptr, &show_console_);
+//        ImGui::MenuItem("ImGui Demo", nullptr, &show_demo_);
+//        ImGui::MenuItem("About", nullptr, &show_about_);
+//        ImGui::EndMenu();
+//    }
+//
+//    ImGui::EndMainMenuBar();
+//}
 void EditorWindows::drawMainMenuBar() {
     if (!ImGui::BeginMainMenuBar()) return;
 
+    // --- Play controls (foundation) ---
+    {
+        const bool inEdit = (playState_ == PlayState::Edit);
+        const bool inPlay = (playState_ == PlayState::Playing);
+        const bool inPaused = (playState_ == PlayState::Paused);
+
+        if (ImGui::Button("Play"))   onPlayPressed();
+        ImGui::SameLine();
+        if (ImGui::Button(inPaused ? "Resume" : "Pause")) onPausePressed();
+        ImGui::SameLine();
+        if (ImGui::Button("Stop"))   onStopPressed();
+
+        ImGui::SameLine();
+        ImGui::TextUnformatted(inEdit ? "Mode: Edit" : (inPlay ? "Mode: Play" : "Mode: Paused"));
+
+       /* ImGui::SameLine();
+        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+        ImGui::SameLine();*/
+        ImGui::SameLine();
+        ImGui::TextDisabled("|");
+        ImGui::SameLine();
+
+    }
+
+    // --- Menus ---
     if (ImGui::BeginMenu("File")) {
+        // Scene file (custom format)
+        if (ImGui::MenuItem("New Scene")) {
+            if (scene_) scene_->clear();
+            setSelection(nullptr);
+            currentScenePath_ = defaultScenePath();
+            std::snprintf(scenePathBuf_, sizeof(scenePathBuf_), "%s", currentScenePath_.c_str());
+            log("New scene / 新建场景");
+        }
+
+        if (ImGui::MenuItem("Save Scene (Ctrl+S)")) {
+            if (!currentScenePath_.empty()) doSaveScene(currentScenePath_);
+            else openSaveScenePopup_ = true;
+        }
+        if (ImGui::MenuItem("Save Scene As...")) openSaveScenePopup_ = true;
+
+        if (ImGui::MenuItem("Load Scene...")) openLoadScenePopup_ = true;
+
+        ImGui::Separator();
+
+        // Quick asset import (existing)
         if (ImGui::MenuItem("Load Street environment (FBX)")) loadStreetAsset("Street environment_V01.FBX");
         if (ImGui::MenuItem("Load street2 (FBX)"))             loadStreetAsset("street2.FBX");
         if (ImGui::MenuItem("Load scene (DAE)"))               loadStreetAsset("scene.DAE");
+
         ImGui::EndMenu();
     }
 
@@ -226,6 +304,7 @@ void EditorWindows::endViewportRender() {
 // ---------------- Layout (engine-like fixed panels) ----------------
 void EditorWindows::drawUI(Camera* camera) {
     drawMainMenuBar();
+    drawSceneIOPopups();
     ImGuizmo::BeginFrame();
 
     ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -637,3 +716,152 @@ void EditorWindows::drawInspector(Camera* camera, float x, float y, float w, flo
 
     ImGui::End();
 }
+// ---------------- Scene Save/Load + Play/Pause helpers ----------------
+std::string EditorWindows::defaultScenePath()
+{
+    fs::path scenesDir = fs::path(getAssetsPath()) / "Scenes";
+    std::error_code ec;
+    fs::create_directories(scenesDir, ec);
+    return (scenesDir / "scene.m2scene").string();
+}
+
+void EditorWindows::doSaveScene(const std::string& path)
+{
+    if (!scene_) { log("Scene is null / scene_ 为空"); return; }
+
+    std::string err;
+    if (!SceneIO::saveToFile(path, *scene_, &err))
+    {
+        log(std::string("Save failed / 保存失败: ") + err);
+        return;
+    }
+
+    currentScenePath_ = path;
+    std::snprintf(scenePathBuf_, sizeof(scenePathBuf_), "%s", currentScenePath_.c_str());
+    log(std::string("Saved scene / 已保存场景: ") + currentScenePath_);
+}
+
+void EditorWindows::doLoadScene(const std::string& path)
+{
+    if (!scene_) { log("Scene is null / scene_ 为空"); return; }
+
+    std::string err;
+    if (!SceneIO::loadFromFile(path, *scene_, getAssetsPath(), &err))
+    {
+        log(std::string("Load failed / 加载失败: ") + err);
+        return;
+    }
+
+    currentScenePath_ = path;
+    std::snprintf(scenePathBuf_, sizeof(scenePathBuf_), "%s", currentScenePath_.c_str());
+    setSelection(nullptr);
+
+    log(std::string("Loaded scene / 已加载场景: ") + currentScenePath_);
+}
+
+void EditorWindows::drawSceneIOPopups()
+{
+    // Save As
+    if (openSaveScenePopup_)
+    {
+        openSaveScenePopup_ = false;
+        ImGui::OpenPopup("Save Scene As");
+    }
+
+    if (ImGui::BeginPopupModal("Save Scene As", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::TextUnformatted("Path:");
+        ImGui::InputText("##save_path", scenePathBuf_, sizeof(scenePathBuf_));
+
+        if (ImGui::Button("Save"))
+        {
+            doSaveScene(scenePathBuf_);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+    }
+
+    // Load
+    if (openLoadScenePopup_)
+    {
+        openLoadScenePopup_ = false;
+        ImGui::OpenPopup("Load Scene");
+    }
+
+    if (ImGui::BeginPopupModal("Load Scene", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::TextUnformatted("Path:");
+        ImGui::InputText("##load_path", scenePathBuf_, sizeof(scenePathBuf_));
+
+        if (ImGui::Button("Load"))
+        {
+            doLoadScene(scenePathBuf_);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+    }
+}
+
+void EditorWindows::onPlayPressed()
+{
+    if (!scene_) return;
+
+    if (playState_ == PlayState::Edit)
+    {
+        // Snapshot current edit scene (Unity-like: stop restores)
+        playBackup_ = SceneIO::serialize(*scene_);
+        playState_ = PlayState::Playing;
+        log("Play / 进入运行模式 (snapshot created)");
+        return;
+    }
+
+    // Paused -> resume
+    if (playState_ == PlayState::Paused)
+    {
+        playState_ = PlayState::Playing;
+        log("Resume / 继续运行");
+    }
+}
+
+void EditorWindows::onPausePressed()
+{
+    if (playState_ == PlayState::Playing)
+    {
+        playState_ = PlayState::Paused;
+        log("Pause / 暂停");
+    }
+    else if (playState_ == PlayState::Paused)
+    {
+        playState_ = PlayState::Playing;
+        log("Resume / 继续运行");
+    }
+}
+
+void EditorWindows::onStopPressed()
+{
+    if (!scene_) return;
+
+    if (playState_ == PlayState::Edit) return;
+
+    // Restore edit scene snapshot
+    std::string err;
+    if (!playBackup_.empty() && SceneIO::deserialize(playBackup_, *scene_, getAssetsPath(), &err))
+    {
+        log("Stop / 停止并恢复编辑场景");
+    }
+    else
+    {
+        log(std::string("Stop restore failed / 停止恢复失败: ") + err);
+    }
+
+    playState_ = PlayState::Edit;
+    setSelection(nullptr);
+    playBackup_.clear();
+}
+
