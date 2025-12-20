@@ -1,4 +1,4 @@
-#define GLM_ENABLE_EXPERIMENTAL
+ï»¿#define GLM_ENABLE_EXPERIMENTAL
 #pragma once
 #include "Transform.h"
 #include <glm/gtc/quaternion.hpp>
@@ -32,6 +32,12 @@ public:
     void update(double dt);
 
     void focusOn(const vec3& targetCenter, double radius = 1.0);
+    
+    // Getters / Setters
+    void setYaw(double y) { _yaw = y; _applyYawPitchToBasis(); }
+    void setPitch(double p) { _pitch = p; _applyYawPitchToBasis(); }
+    double getYaw() const { return _yaw; }
+    double getPitch() const { return _pitch; }
 
 private:
     // teclas
@@ -43,7 +49,7 @@ private:
     int _lastX = 0, _lastY = 0;
     bool _haveLast = false;
 
-    // orientación/órbita
+    // orientaciÃ³n/Ã³rbita
     double _yaw = 0.0;
     double _pitch = 0.0;
     vec3   _orbitTarget = vec3(0.0);

@@ -27,6 +27,12 @@ struct AABB {
         max.z = std::max(max.z, point.z);
     }
 
+    void merge(const AABB& other) {
+        if (!other.isValid()) return;
+        expand(other.min);
+        expand(other.max);
+    }
+
     vec3 center() const {
         return (min + max) * 0.5;
     }

@@ -87,10 +87,13 @@ void AssetDatabase::loadAssetMetadata(const fs::path& assetPath) {
     // Try to load existing metadata
     if (fs::exists(metaPath)) {
         AssetMeta::loadFromFile(metaPath, meta);
+        // RECONSTRUCT paths based on current environment (portability fix)
+        meta.sourcePath = sourcePath;
+        meta.libraryPath = (fs::path(library_path_) / meta.guid).string();
     } else {
         // Create new metadata
-      meta.guid = AssetMeta::generateGUID();
-        meta.libraryPath = library_path_ + "/" + meta.guid;
+        meta.guid = AssetMeta::generateGUID();
+        meta.libraryPath = (fs::path(library_path_) / meta.guid).string();
         meta.referenceCount = 0;
         if (meta.assetType == "Texture") {
             meta.texMinFilter = "Linear";

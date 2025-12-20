@@ -1,7 +1,17 @@
 # Asset metadata file
 guid: b6a0cc24e7f116fe
-sourcePath: C:\Users\Edu\Desktop\Motor\Assets\TF2.fbx
-libraryPath: C:\Users\Edu\Desktop\Motor\Library/b6a0cc24e7f116fe
 assetType: Model
 referenceCount: 0
-sourceTimestamp: 134065571291792773
+sourceTimestamp: 134100036473855837
+texMinFilter: Linear
+texMagFilter: Linear
+texWrapS: Repeat
+texWrapT: Repeat
+texFlipX: false
+texFlipY: false
+texMipmaps: true
+meshScale: 1
+axisUp: Y
+axisForward: -Z
+ignoreCameras: true
+ignoreLights: true

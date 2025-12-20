@@ -1,7 +1,17 @@
 # Asset metadata file
 guid: 91bde7b16111f61a
-sourcePath: C:\Users\Edu\Desktop\Motor\Assets\Primitives\Disc.fbx
-libraryPath: C:\Users\Edu\Desktop\Motor\Library/91bde7b16111f61a
 assetType: Model
 referenceCount: 0
-sourceTimestamp: 134065571291792773
+sourceTimestamp: 134100036473774372
+texMinFilter: Linear
+texMagFilter: Linear
+texWrapS: Repeat
+texWrapT: Repeat
+texFlipX: false
+texFlipY: false
+texMipmaps: true
+meshScale: 1
+axisUp: Y
+axisForward: -Z
+ignoreCameras: true
+ignoreLights: true

@@ -1,7 +1,17 @@
 # Asset metadata file
 guid: 92a4179a7ef38c7e
-sourcePath: C:\Users\Edu\Desktop\Motor\Assets\Building_V02_C.png
-libraryPath: C:\Users\Edu\Desktop\Motor\Library/92a4179a7ef38c7e
 assetType: Texture
 referenceCount: 0
-sourceTimestamp: 134088209184979710
+sourceTimestamp: 134100036473687682
+texMinFilter: Linear
+texMagFilter: Linear
+texWrapS: Repeat
+texWrapT: Repeat
+texFlipX: false
+texFlipY: false
+texMipmaps: true
+meshScale: 1
+axisUp: Y
+axisForward: -Z
+ignoreCameras: true
+ignoreLights: true

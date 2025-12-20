@@ -36,8 +36,6 @@ bool AssetMeta::loadFromFile(const std::string& metaFilePath, AssetMeta& outMeta
         value.erase(value.find_last_not_of(" \t") + 1);
 
  if (key == "guid") outMeta.guid = value;
-        else if (key == "sourcePath") outMeta.sourcePath = value;
-        else if (key == "libraryPath") outMeta.libraryPath = value;
  else if (key == "assetType") outMeta.assetType = value;
         else if (key == "referenceCount") outMeta.referenceCount = std::stoi(value);
         else if (key == "sourceTimestamp") outMeta.sourceTimestamp = std::stoll(value);
@@ -65,8 +63,6 @@ bool AssetMeta::saveToFile(const std::string& metaFilePath, const AssetMeta& met
 
     file << "# Asset metadata file\n";
     file << "guid: " << meta.guid << "\n";
-    file << "sourcePath: " << meta.sourcePath << "\n";
-    file << "libraryPath: " << meta.libraryPath << "\n";
     file << "assetType: " << meta.assetType << "\n";
     file << "referenceCount: " << meta.referenceCount << "\n";
     file << "sourceTimestamp: " << meta.sourceTimestamp << "\n";

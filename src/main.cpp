@@ -139,6 +139,28 @@ static void createMainCamera() {
     mainOctree.insert(mainCamera);
 }
 
+static void focusEditorCameraOnScene() {
+    if (gameObjects.empty()) return;
+
+    AABB sceneBounds;
+    bool anyMesh = false;
+
+    for (const auto& go : gameObjects) {
+        if (go->mesh) {
+            mat4 worldMatrix = computeWorldMatrix(go.get());
+            AABB worldAABB = go->mesh->getWorldAABB(worldMatrix);
+            sceneBounds.merge(worldAABB);
+            anyMesh = true;
+        }
+    }
+
+    if (anyMesh) {
+        vec3 center = sceneBounds.center();
+        double radius = glm::length(sceneBounds.size()) * 0.5;
+        editorCamera.focusOn(center, radius);
+    }
+}
+
 static void loadDefaultScene() {
     mainOctree.clear();
     gameObjects.clear(); // Clear existing objects if any
@@ -148,6 +170,7 @@ static void loadDefaultScene() {
     loadModelToScene("BakerHouse.fbx", "BakerHouse");
     
     createMainCamera();
+    focusEditorCameraOnScene();
 }
 
 static void loadModelFromFile(const string& filepath) {
@@ -563,6 +586,7 @@ static void render() {
     if (!editorCameraInitialized) {
          editorCamera.transform.setPosition({0, 5, 20});
          editorCamera.fov = glm::radians(60.0);
+         editorCamera.setYaw(glm::radians(180.0)); // Rotate 180 degrees
          
          editorCameraInitialized = true;
     }
