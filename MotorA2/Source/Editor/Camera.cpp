@@ -112,20 +112,34 @@ void Camera::_applyYawPitchToBasis() {
     M[3] = vec4(transform.pos(), 1.0);
 }
 
+//void Camera::_freeLookPixels(int dx, int dy) {
+//    _yaw -= dx * lookSensitivity;
+//    _pitch -= dy * lookSensitivity;
+//}
+//
+//void Camera::_orbitPixels(int dx, int dy) {
+//    // órbita alrededor del tarjet
+//    _yaw -= dx * lookSensitivity;
+//    _pitch -= dy * lookSensitivity;
+//    _applyYawPitchToBasis();
+//
+//    vec3 f = glm::normalize(transform.fwd());
+//    transform.pos() = _orbitTarget - f * _orbitDistance;
+//}
 void Camera::_freeLookPixels(int dx, int dy) {
-    _yaw -= dx * lookSensitivity;
-    _pitch -= dy * lookSensitivity;
+    _yaw += dx * lookSensitivity;
+    _pitch += -dy * lookSensitivity; // 如果你觉得上下也反了，就用 -dy
 }
 
 void Camera::_orbitPixels(int dx, int dy) {
-    // órbita alrededor del tarjet
-    _yaw -= dx * lookSensitivity;
-    _pitch -= dy * lookSensitivity;
+    _yaw += dx * lookSensitivity;
+    _pitch += -dy * lookSensitivity;
     _applyYawPitchToBasis();
 
     vec3 f = glm::normalize(transform.fwd());
     transform.pos() = _orbitTarget - f * _orbitDistance;
 }
+
 
 void Camera::_panPixels(int dx, int dy) {
     vec3 f = glm::normalize(transform.fwd());

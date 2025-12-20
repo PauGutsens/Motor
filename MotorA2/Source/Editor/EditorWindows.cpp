@@ -295,7 +295,7 @@ void EditorWindows::drawViewportWindow(Camera* camera, float x, float y, float w
 
         // W/E/R 切换模式（仅在 Viewport 有焦点时）
         static ImGuizmo::OPERATION op = ImGuizmo::TRANSLATE;
-        static ImGuizmo::MODE mode = ImGuizmo::WORLD;
+        static ImGuizmo::MODE mode = ImGuizmo::LOCAL;
 
         if (viewportFocused_) {
             if (ImGui::IsKeyPressed(ImGuiKey_W)) op = ImGuizmo::TRANSLATE;
