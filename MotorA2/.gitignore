@@ -1,0 +1,19 @@
+# Build outputs
+build/
+out/
+bin/
+obj/
+
+# Visual Studio / CMake
+.vs/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.cmake.user
+*.vcxproj.user
+
+# Preset user overrides (per-machine)
+CMakeUserPresets.json
+
+# Logs / misc
+*.log
