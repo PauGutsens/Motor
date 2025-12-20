@@ -12,6 +12,8 @@
 
 #include "Camera.h"
 #include "ModelLoader.h"
+#include "ImGuizmo.h"
+#include <glm/gtc/type_ptr.hpp>
 
 namespace fs = std::filesystem;
 
@@ -224,6 +226,7 @@ void EditorWindows::endViewportRender() {
 // ---------------- Layout (engine-like fixed panels) ----------------
 void EditorWindows::drawUI(Camera* camera) {
     drawMainMenuBar();
+    ImGuizmo::BeginFrame();
 
     ImGuiViewport* vp = ImGui::GetMainViewport();
     ImVec2 wp = vp->WorkPos;   // 不含主菜单栏
@@ -249,7 +252,8 @@ void EditorWindows::drawUI(Camera* camera) {
     if (show_console_) drawConsole(wp.x, wp.y + centerH, ws.x, bottomH);
 
     // Viewport uses the center area
-    drawViewportWindow(centerX, centerY, centerW, centerH);
+   /* drawViewportWindow(centerX, centerY, centerW, centerH);*/
+    drawViewportWindow(camera, centerX, centerY, centerW, centerH);
 
     if (show_demo_) ImGui::ShowDemoWindow(&show_demo_);
     if (show_about_) drawAbout();
@@ -261,7 +265,9 @@ static ImGuiWindowFlags PanelFlags() {
         ImGuiWindowFlags_NoCollapse;
 }
 
-void EditorWindows::drawViewportWindow(float x, float y, float w, float h) {
+/*void EditorWindows::drawViewportWindow(float x, float y, float w, float h)*/
+void EditorWindows::drawViewportWindow(Camera* camera, float x, float y, float w, float h)
+{
     ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Always);
 
@@ -282,6 +288,66 @@ void EditorWindows::drawViewportWindow(float x, float y, float w, float h) {
     else {
         ImGui::TextUnformatted("Viewport RT not ready...");
     }
+    // ======================
+// Gizmo (ImGuizmo) begin
+// ======================
+    if (camera && selected_ && viewportColorTex_ != 0) {
+
+        // W/E/R 切换模式（仅在 Viewport 有焦点时）
+        static ImGuizmo::OPERATION op = ImGuizmo::TRANSLATE;
+        static ImGuizmo::MODE mode = ImGuizmo::WORLD;
+
+        if (viewportFocused_) {
+            if (ImGui::IsKeyPressed(ImGuiKey_W)) op = ImGuizmo::TRANSLATE;
+            if (ImGui::IsKeyPressed(ImGuiKey_E)) op = ImGuizmo::ROTATE;
+            if (ImGui::IsKeyPressed(ImGuiKey_R)) op = ImGuizmo::SCALE;
+
+            // 可选：按 Q 切换世界/本地坐标
+            if (ImGui::IsKeyPressed(ImGuiKey_Q)) {
+                mode = (mode == ImGuizmo::WORLD) ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
+            }
+        }
+
+        // 让相机投影匹配当前 viewport
+        camera->aspect = (viewportH_ > 0) ? (double)viewportW_ / (double)viewportH_ : camera->aspect;
+
+        // 计算 Viewport 的屏幕 rect（ImGuizmo 用屏幕坐标）
+        ImVec2 winPos = ImGui::GetWindowPos();
+        ImVec2 crMin = ImGui::GetWindowContentRegionMin();
+        float rectX = winPos.x + crMin.x;
+        float rectY = winPos.y + crMin.y;
+        float rectW = (float)viewportW_;
+        float rectH = (float)viewportH_;
+
+        ImGuizmo::SetDrawlist();
+        ImGuizmo::SetRect(rectX, rectY, rectW, rectH);
+
+        // ImGuizmo 需要 float 矩阵，你的 types.h 用的是 dmat4（double）
+        glm::mat4 viewF = glm::mat4(camera->view());
+        glm::mat4 projF = glm::mat4(camera->projection());
+
+        // 选中物体的世界矩阵
+        mat4 worldD = computeWorldMatrix(selected_.get());
+        glm::mat4 worldF = glm::mat4(worldD);
+
+        // Manipulate 会直接修改 worldF
+        ImGuizmo::Manipulate(
+            glm::value_ptr(viewF),
+            glm::value_ptr(projF),
+            op,
+            mode,
+            glm::value_ptr(worldF)
+        );
+
+        // 当正在拖 gizmo 时，把新 world 写回 local（保持父子层级正确）
+        if (ImGuizmo::IsUsing()) {
+            mat4 newWorldD = mat4(worldF); // float->double
+            setLocalFromWorld(selected_.get(), newWorldD, selected_->parent);
+        }
+    }
+    // ====================
+    // Gizmo (ImGuizmo) end
+    // ====================
 
     ImGui::End();
 }

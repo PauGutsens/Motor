@@ -3,7 +3,18 @@
 #include <cmath>
 
 void Transform::translate(const vec3& v) { _mat = glm::translate(_mat, v); }
-void Transform::rotate(double rads, const vec3& v) { _mat = glm::rotate(_mat, rads, v); }
+//void Transform::rotate(double rads, const vec3& v) { _mat = glm::rotate(_mat, rads, v); }
+void Transform::rotate(double rads, const vec3& axisWorld) {
+    mat4 R = glm::rotate(mat4(1.0), rads, axisWorld);
+
+    // 只旋转三个方向轴，不动位置
+    _left = vec3(R * vec4(_left, 0.0)); _left_w = (mat4::value_type)0;
+    _up = vec3(R * vec4(_up, 0.0)); _up_w = (mat4::value_type)0;
+    _fwd = vec3(R * vec4(_fwd, 0.0)); _fwd_w = (mat4::value_type)0;
+
+    _pos_w = (mat4::value_type)1;
+}
+
 void Transform::setPosition(const vec3& t) {
     _pos = t;
     _pos_w = (mat4::value_type)1;

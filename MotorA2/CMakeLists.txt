@@ -59,4 +59,6 @@ target_include_directories(MotorA2 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Source/Core
     ${CMAKE_CURRENT_SOURCE_DIR}/Source/Renderer
     ${CMAKE_CURRENT_SOURCE_DIR}/Source/Editor
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source/Editor/ImGuizmo
+
 )

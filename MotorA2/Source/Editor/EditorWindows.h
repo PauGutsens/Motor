@@ -69,7 +69,9 @@ private:
 
     // UI
     void drawMainMenuBar();
-    void drawViewportWindow(float x, float y, float w, float h);
+    /*void drawViewportWindow(float x, float y, float w, float h);*/
+    void drawViewportWindow(Camera* camera, float x, float y, float w, float h);
+
     void drawHierarchy(float x, float y, float w, float h);
     void drawInspector(Camera* camera, float x, float y, float w, float h);
     void drawConsole(float x, float y, float w, float h);
