@@ -177,3 +177,40 @@ void Camera::_dollySteps(int steps) {
         _orbitDistance = glm::length(_orbitTarget - transform.pos());
     }
 }
+void Camera::setFromViewMatrix(const glm::mat4& view)
+{
+    // view 的逆 = 世界空间下的相机变换（world matrix）
+    glm::mat4 invF = glm::inverse(view);
+
+    // 你的 Transform 是 double（dmat4/dvec3），这里做一次 float->double
+    mat4 inv = mat4(invF);
+
+    // 相机位置：world matrix 第 4 列
+    vec3 pos = vec3(inv[3]);
+
+    // 从矩阵提取相机 forward/up：
+    // 你的 view() 是 lookAt(p, p+f, u)，因此 world matrix 的第3列是 -forward
+    vec3 forward = -glm::normalize(vec3(inv[2]));
+    vec3 up = glm::normalize(vec3(inv[1]));
+    vec3 right = glm::normalize(vec3(inv[0]));
+    vec3 left = -right;
+
+    // 1) 写回 Transform（位置 + basis）
+    mat4& M = transform.mat_mutable();
+    M[0] = vec4(left, 0.0);
+    M[1] = vec4(up, 0.0);
+    M[2] = vec4(forward, 0.0);
+    M[3] = vec4(pos, 1.0);
+
+    // 2) 同步 yaw/pitch（保持你原有的鼠标控制体系能继续用）
+    // 你 _applyYawPitchToBasis() 里 forward 的公式是：
+    // f = (cp*sy, sp, cp*cy)
+    _pitch = std::asin(glm::clamp(forward.y, -1.0, 1.0));
+    _yaw = std::atan2(forward.x, forward.z);
+
+    // 3) 重新应用一次（确保内部状态一致）
+    _applyYawPitchToBasis();
+
+    // 4) 同步 orbit 距离（可选但推荐：避免 Orbit 模式跳一下）
+    _orbitDistance = glm::length(_orbitTarget - transform.pos());
+}

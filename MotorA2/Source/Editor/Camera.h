@@ -28,6 +28,9 @@ public:
     void onKeyUp(int scancode);
     void onSpecialKeyDown(int key) {}
     void onSpecialKeyUp(int key) {}
+    // Camera.h
+    void setFromViewMatrix(const glm::mat4& view);
+
 
     void update(double dt);
 

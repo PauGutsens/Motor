@@ -338,7 +338,18 @@ void EditorWindows::drawViewportWindow(Camera* camera, float x, float y, float w
             mode,
             glm::value_ptr(worldF)
         );
+        float viewSize = 96.0f; // 控件大小（可以调）
 
+        ImGuizmo::ViewManipulate(
+            glm::value_ptr(viewF),
+            8.0f, // 距离目标的距离
+            ImVec2(rectX + rectW - viewSize - 4.0f, rectY + 4.0f),
+            ImVec2(viewSize, viewSize),
+            0x00000000
+        );
+
+        // ★ 这就是你刚才“找不到的步骤 3”
+        camera->setFromViewMatrix(viewF);
         // 当正在拖 gizmo 时，把新 world 写回 local（保持父子层级正确）
         if (ImGuizmo::IsUsing()) {
             mat4 newWorldD = mat4(worldF); // float->double
