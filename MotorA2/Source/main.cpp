@@ -1,5 +1,6 @@
 ﻿#include <functional>
 #include <imgui.h>
+#include "Core/Frustum.h"
 
 #define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>
@@ -177,6 +178,11 @@ int main(int argc, char** argv)
             // fixed pipeline matrices
             mat4 P = mainCam.projection();
             mat4 V = mainCam.view();
+            mat4 VP = P * V;
+            Frustum fr = Frustum::fromViewProjection(VP);
+
+            int drawn = 0;
+            int culled = 0;
             glMatrixMode(GL_PROJECTION);
             glLoadMatrixd(glm::value_ptr(P));
             glMatrixMode(GL_MODELVIEW);
@@ -188,7 +194,7 @@ int main(int argc, char** argv)
             glColor3f(0.85f, 0.85f, 0.85f);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-            if (!scene.empty())
+            /*if (!scene.empty())
             {
                 std::function<void(GameObject*)> drawNode = [&](GameObject* n)
                     {
@@ -203,8 +209,35 @@ int main(int argc, char** argv)
                     if (sp->parent != nullptr) continue;
                     drawNode(sp.get());
                 }
-            }
+            }*/
+            if (!scene.empty())
+            {
+                std::function<void(GameObject*)> drawNode = [&](GameObject* n)
+                    {
+                        if (!n) return;
 
+                        // Cull whole subtree using aggregated world AABB
+                        AABB box = n->computeWorldAABB();
+                        if (!fr.intersects(box))
+                        {
+                            culled++;
+                            return;
+                        }
+
+                        // Draw this node (if it has mesh), then children
+                        n->draw();
+                        if (n->mesh) drawn++;
+
+                        for (auto* c : n->children) drawNode(c);
+                    };
+
+                for (auto& sp : scene)
+                {
+                    if (!sp) continue;
+                    if (sp->parent != nullptr) continue;
+                    drawNode(sp.get());
+                }
+            }
             editor.endViewportRender();
         }
 
