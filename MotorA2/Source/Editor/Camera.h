@@ -30,6 +30,10 @@ public:
     void onSpecialKeyUp(int key) {}
     // Camera.h
     void setFromViewMatrix(const glm::mat4& view);
+    // Frame Selected / Editor helper
+// Editor helper
+    void frameTo(const vec3& center, double radius);
+
 
 
     void update(double dt);

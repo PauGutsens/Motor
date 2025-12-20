@@ -25,6 +25,8 @@ public:
     int indexInParent() const;
     void addChild(GameObject* c, int index = -1);
     void removeChild(GameObject* c);
+    AABB computeWorldAABB() const;
+
 };
 
 mat4 computeWorldMatrix(const GameObject* go);

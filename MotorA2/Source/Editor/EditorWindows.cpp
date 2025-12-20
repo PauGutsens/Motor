@@ -306,6 +306,38 @@ void EditorWindows::drawViewportWindow(Camera* camera, float x, float y, float w
             if (ImGui::IsKeyPressed(ImGuiKey_Q)) {
                 mode = (mode == ImGuizmo::WORLD) ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
             }
+            // Frame Selected (F)
+            if (ImGui::IsKeyPressed(ImGuiKey_F) && camera && selected_) {
+
+                auto isValid = [](const AABB& b) {
+                    return (b.min.x <= b.max.x) && (b.min.y <= b.max.y) && (b.min.z <= b.max.z);
+                    };
+
+                AABB box = selected_->computeWorldAABB();
+                if (isValid(box)) {
+
+                    vec3 center = box.center();
+                    vec3 extent = box.max - box.min;
+                    double radius = glm::length(extent) * 0.5;
+
+                    // 防止半径为 0（点/空物体）
+                    radius = std::max(radius, 0.01);
+
+                    //// 1) 设置 orbit pivot
+                    //camera->_orbitTarget = center;
+
+                    //// 2) 用 FOV 算合适距离（确保能看到整个物体）
+                    //double fovRad = camera->fov * (3.14159265358979323846 / 180.0);
+                    //camera->_orbitDistance = radius / std::tan(fovRad * 0.5);
+
+                    //// 3) 立刻把相机放到 pivot 前方（避免等一帧）
+                    //vec3 fwd = camera->forward();
+                    //camera->transform.pos() = camera->_orbitTarget - fwd * camera->_orbitDistance;
+                    camera->frameTo(center, radius);
+
+                }
+            }
+
         }
 
         // 让相机投影匹配当前 viewport

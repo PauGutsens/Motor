@@ -1,4 +1,4 @@
-#include "GameObject.h"
+﻿#include "GameObject.h"
 #include <GL/glew.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
@@ -120,3 +120,96 @@ void setLocalFromWorld(GameObject* go, const mat4& M_world, const GameObject* ne
     const mat4 M_parent = newParent ? computeWorldMatrix(newParent) : mat4(1.0);
     go->transform.mat_mutable() = glm::inverse(M_parent) * M_world;
 }
+//AABB GameObject::computeWorldAABB() const
+//{
+//    AABB result;
+//    bool hasAny = false;
+//
+//    // 1️⃣ 自己的 mesh
+//    if (mesh) {
+//        // mesh 的 local AABB
+//        //AABB local = mesh->aabb();   // ← 你 Mesh 里已经有这个
+//        mat4 world = computeWorldMatrix(this);
+//        AABB worldBox = mesh->getWorldAABB(world);
+//
+//        mat4 world = computeWorldMatrix(this);
+//
+//        // 把 local AABB 的 8 个角变换到世界空间
+//        vec3 corners[8] = {
+//            { local.min.x, local.min.y, local.min.z },
+//            { local.max.x, local.min.y, local.min.z },
+//            { local.min.x, local.max.y, local.min.z },
+//            { local.max.x, local.max.y, local.min.z },
+//            { local.min.x, local.min.y, local.max.z },
+//            { local.max.x, local.min.y, local.max.z },
+//            { local.min.x, local.max.y, local.max.z },
+//            { local.max.x, local.max.y, local.max.z }
+//        };
+//
+//        for (int i = 0; i < 8; ++i) {
+//            vec4 w = world * vec4(corners[i], 1.0);
+//            if (!hasAny) {
+//                result.min = result.max = vec3(w);
+//                hasAny = true;
+//            }
+//            else {
+//                result.expand(vec3(w));
+//            }
+//        }
+//    }
+//
+//    // 2️⃣ 子节点（递归）
+//    for (auto* c : children) {
+//        AABB childBox = c->computeWorldAABB();
+//        if (!childBox.valid()) continue;
+//
+//        if (!hasAny) {
+//            result = childBox;
+//            hasAny = true;
+//        }
+//        else {
+//            result.expand(childBox.min);
+//            result.expand(childBox.max);
+//        }
+//    }
+//
+//    return result;
+//}
+AABB GameObject::computeWorldAABB() const
+{
+    auto isValid = [](const AABB& b) {
+        return (b.min.x <= b.max.x) && (b.min.y <= b.max.y) && (b.min.z <= b.max.z);
+        };
+
+    AABB result;
+    bool hasAny = false;
+
+    // 1) 自己的 mesh
+    if (mesh) {
+        mat4 world = computeWorldMatrix(this);
+        AABB worldBox = mesh->getWorldAABB(world);
+
+        if (isValid(worldBox)) {
+            result = worldBox;
+            hasAny = true;
+        }
+    }
+
+    // 2) 子节点递归合并
+    for (auto* c : children) {
+        AABB childBox = c->computeWorldAABB();
+        if (!isValid(childBox)) continue;
+
+        if (!hasAny) {
+            result = childBox;
+            hasAny = true;
+        }
+        else {
+            result.expand(childBox.min);
+            result.expand(childBox.max);
+        }
+    }
+
+    return result;
+}
+
