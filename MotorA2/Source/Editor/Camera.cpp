@@ -228,23 +228,42 @@ void Camera::setFromViewMatrix(const glm::mat4& view)
     // 4) 同步 orbit 距离（可选但推荐：避免 Orbit 模式跳一下）
     _orbitDistance = glm::length(_orbitTarget - transform.pos());
 }
+//void Camera::frameTo(const vec3& center, double radius)
+//{
+//    // 防止半径为 0
+//    radius = std::max(radius, 0.01);
+//
+//    // 1) 设置 orbit pivot
+//    _orbitTarget = center;
+//
+//    // 2) 根据 FOV 算距离
+//    double fovRad = fov * (3.14159265358979323846 / 180.0);
+//    _orbitDistance = radius / std::tan(fovRad * 0.5);
+//
+//    // 3) 从 Transform 矩阵中取 forward
+//    // 世界矩阵第 3 列（index 2）是 forward
+//    const mat4& M = transform.mat();
+//    vec3 forward = glm::normalize(vec3(M[2]));
+//
+//    // 4) 设置相机位置（注意：相机在 forward 的反方向）
+//    transform.pos() = _orbitTarget - forward * _orbitDistance;
+//}
 void Camera::frameTo(const vec3& center, double radius)
 {
-    // 防止半径为 0
     radius = std::max(radius, 0.01);
 
     // 1) 设置 orbit pivot
     _orbitTarget = center;
 
-    // 2) 根据 FOV 算距离
-    double fovRad = fov * (3.14159265358979323846 / 180.0);
-    _orbitDistance = radius / std::tan(fovRad * 0.5);
+    // 2) fov 已经是弧度（见 Camera.h: glm::radians）
+    // 给一点 margin（1.2）确保物体不会刚好贴边
+    const double margin = 1.2;
+    _orbitDistance = std::max(0.001, margin * radius / std::tan(fov * 0.5));
 
-    // 3) 从 Transform 矩阵中取 forward
-    // 世界矩阵第 3 列（index 2）是 forward
-    const mat4& M = transform.mat();
-    vec3 forward = glm::normalize(vec3(M[2]));
+    // 3) 用当前相机 forward（更可靠）
+    vec3 fwd = glm::normalize(transform.fwd());
 
-    // 4) 设置相机位置（注意：相机在 forward 的反方向）
-    transform.pos() = _orbitTarget - forward * _orbitDistance;
+    // 4) 把相机放到目标前方（沿 forward 的反方向）
+    transform.pos() = _orbitTarget - fwd * _orbitDistance;
 }
+
