@@ -135,19 +135,58 @@ void EditorWindows::loadStreetAsset(const std::string& filename, Camera* camera)
     std::shared_ptr<GameObject> firstGo = nullptr;
     std::string baseName = p.stem().string();
 
-    for (size_t i = 0; i < meshes.size(); ++i) {
-        auto& mesh = meshes[i];
-        if (!mesh) continue;
-
+    for (size_t i = 0; i < meshes.size(); ++i)
+    {
+        // 1. RECUPERAR EL NOMBRE (Esta es la línea que te faltaba)
         std::string goName = (meshes.size() == 1) ? baseName : (baseName + "_" + std::to_string(i));
-        auto go = std::make_shared<GameObject>(goName);
-        go->setMesh(mesh);
 
-        // Tu rotación para levantar la casa
-        // go->transform.rotateEulerDeltaDeg(vec3(-90.0, 0.0, 0.0));
-		// Controlar el escalado
+        // 2. Clonar la malla para que sea ÚNICA para este objeto
+        auto originalMesh = meshes[i];
+        if (!originalMesh) continue;
+
+        // Creamos una malla nueva copiando los datos de la original
+        auto uniqueMesh = std::make_shared<Mesh>();
+        uniqueMesh->vertices = originalMesh->vertices;   // Copia de vértices
+        uniqueMesh->indices = originalMesh->indices;     // Copia de índices
+        uniqueMesh->textureID = originalMesh->textureID; // Copia de textura
+        // Copia aquí normales o UVs si los tienes en vectores separados en tu clase Mesh
+
+        // 3. Crear el objeto con la malla clonada
+        auto go = std::make_shared<GameObject>(goName);
+        go->setMesh(uniqueMesh);
+
+        // -----------------------------------------------------------------
+        // CENTRAR GIZMO (Ahora es seguro porque la malla es única)
+        // -----------------------------------------------------------------
+        uniqueMesh->computeAABB();
+
+        if (uniqueMesh->localAABB.isValid())
+        {
+            // Centro X y Z, y Suelo Y
+            float centerX = (uniqueMesh->localAABB.min.x + uniqueMesh->localAABB.max.x) * 0.5f;
+            float centerZ = (uniqueMesh->localAABB.min.z + uniqueMesh->localAABB.max.z) * 0.5f;
+            float bottomY = uniqueMesh->localAABB.min.y;
+
+            vec3 offset = vec3(centerX, bottomY, centerZ);
+
+            // Mover vértices de la copia
+            for (auto& v : uniqueMesh->vertices) {
+                v.position -= offset;
+            }
+
+            // Actualizar GPU
+            uniqueMesh->computeAABB();
+            uniqueMesh->setupMesh();
+
+            // Mover el objeto para compensar
+            go->transform.setPosition(vec3(offset.x * 0.5f, offset.y * 0.5f, offset.z * 0.5f));
+        }
+        // -----------------------------------------------------------------
+
+        // Escalado
         go->transform.setScale(vec3(0.5f, 0.5f, 0.5f));
 
+        // Resto de la configuración del objeto
         fs::path assetsRoot = fs::path(getAssetsPath());
         std::error_code ec;
         fs::path rel = fs::relative(p, assetsRoot, ec);
