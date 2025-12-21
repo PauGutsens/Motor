@@ -20,12 +20,9 @@ Camera::Camera() {
     _yaw = 0.0; // Mirando hacia -Z
 
     // Inicializar variables de órbita
-    // Es importante que la distancia coincida con tu posición Z inicial
-    // para que el zoom funcione suave desde el principio.
     _orbitTarget = vec3(0.0f, 0.0f, 0.0f);
     _orbitDistance = 10.0;
 
-    // Aplicar estos cambios a la matriz interna
     _applyYawPitchToBasis();
 }
 

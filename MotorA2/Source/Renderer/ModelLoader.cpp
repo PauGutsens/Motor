@@ -3,6 +3,7 @@
 #include "Mesh.h"
 #include "MeshImporter.h"
 
+#include <assimp/cimport.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -187,6 +188,9 @@ std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& pat
     std::vector<std::shared_ptr<Mesh>> meshes;
 
     Assimp::Importer importer;
+
+    importer.SetPropertyInteger(AI_CONFIG_PP_PTV_KEEP_HIERARCHY, 1);
+
     const aiScene* scene = importer.ReadFile(
         path.c_str(),
         aiProcess_Triangulate |
@@ -194,7 +198,7 @@ std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& pat
         aiProcess_ImproveCacheLocality |
         aiProcess_JoinIdenticalVertices |
         aiProcess_RemoveRedundantMaterials |
-        aiProcess_OptimizeMeshes |
+        //aiProcess_OptimizeMeshes |
         aiProcess_CalcTangentSpace |
         aiProcess_ValidateDataStructure |
         aiProcess_PreTransformVertices
