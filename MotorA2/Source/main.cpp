@@ -77,7 +77,9 @@ int main(int argc, char** argv)
 
     // Camera
     Camera mainCam;
-    mainCam.transform.setPosition(vec3(0.0, 1.5, 8.0));
+    //mainCam.transform.setPosition(vec3(0.0, 1.5, 8.0));
+    //mainCam.focusOn(vec3(0.0), 5.0);
+    mainCam.transform.setPosition(vec3(0.0, 1.5, -8.0));
     mainCam.focusOn(vec3(0.0), 5.0);
 
     // Editor

@@ -100,7 +100,7 @@ void Camera::_applyYawPitchToBasis() {
 
     double cp = std::cos(_pitch), sp = std::sin(_pitch);
     double cy = std::cos(_yaw), sy = std::sin(_yaw);
-    vec3 f = vec3(cp * sy, sp, cp * cy);
+    vec3 f = vec3(cp * sy, sp, -cp * cy);
     vec3 r = glm::normalize(glm::cross(f, _worldUp()));
     vec3 u = glm::normalize(glm::cross(r, f));
     vec3 l = -r;
@@ -220,7 +220,7 @@ void Camera::setFromViewMatrix(const glm::mat4& view)
     // 你 _applyYawPitchToBasis() 里 forward 的公式是：
     // f = (cp*sy, sp, cp*cy)
     _pitch = std::asin(glm::clamp(forward.y, -1.0, 1.0));
-    _yaw = std::atan2(forward.x, forward.z);
+    _yaw = std::atan2(forward.x, -forward.z);
 
     // 3) 重新应用一次（确保内部状态一致）
     _applyYawPitchToBasis();
@@ -228,42 +228,16 @@ void Camera::setFromViewMatrix(const glm::mat4& view)
     // 4) 同步 orbit 距离（可选但推荐：避免 Orbit 模式跳一下）
     _orbitDistance = glm::length(_orbitTarget - transform.pos());
 }
-//void Camera::frameTo(const vec3& center, double radius)
-//{
-//    // 防止半径为 0
-//    radius = std::max(radius, 0.01);
-//
-//    // 1) 设置 orbit pivot
-//    _orbitTarget = center;
-//
-//    // 2) 根据 FOV 算距离
-//    double fovRad = fov * (3.14159265358979323846 / 180.0);
-//    _orbitDistance = radius / std::tan(fovRad * 0.5);
-//
-//    // 3) 从 Transform 矩阵中取 forward
-//    // 世界矩阵第 3 列（index 2）是 forward
-//    const mat4& M = transform.mat();
-//    vec3 forward = glm::normalize(vec3(M[2]));
-//
-//    // 4) 设置相机位置（注意：相机在 forward 的反方向）
-//    transform.pos() = _orbitTarget - forward * _orbitDistance;
-//}
 void Camera::frameTo(const vec3& center, double radius)
 {
     radius = std::max(radius, 0.01);
-
-    // 1) 设置 orbit pivot
     _orbitTarget = center;
 
-    // 2) fov 已经是弧度（见 Camera.h: glm::radians）
-    // 给一点 margin（1.2）确保物体不会刚好贴边
+    // fov 在 Camera.h 里已经是弧度（glm::radians）
     const double margin = 1.2;
     _orbitDistance = std::max(0.001, margin * radius / std::tan(fov * 0.5));
 
-    // 3) 用当前相机 forward（更可靠）
-    vec3 fwd = glm::normalize(transform.fwd());
-
-    // 4) 把相机放到目标前方（沿 forward 的反方向）
-    transform.pos() = _orbitTarget - fwd * _orbitDistance;
+    // 用当前 forward 放置相机（相机在 forward 的反方向）
+    vec3 forward = glm::normalize(transform.fwd());
+    transform.pos() = _orbitTarget - forward * _orbitDistance;
 }
-
