@@ -17,6 +17,7 @@
 
 #include "Camera.h"
 #include "SceneIO.h"
+#include "AABB.h"
 
 #include "ModelLoader.h"
 #include "ImGuizmo.h"
@@ -194,9 +195,9 @@ void EditorWindows::drawMainMenuBar() {
         ImGui::SameLine();
         ImGui::TextUnformatted(inEdit ? "Mode: Edit" : (inPlay ? "Mode: Play" : "Mode: Paused"));
 
-       /* ImGui::SameLine();
-        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-        ImGui::SameLine();*/
+        /* ImGui::SameLine();
+         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+         ImGui::SameLine();*/
         ImGui::SameLine();
         ImGui::TextDisabled("|");
         ImGui::SameLine();
@@ -343,6 +344,40 @@ static ImGuiWindowFlags PanelFlags() {
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoCollapse;
 }
+static Ray MakePickRayFromViewport(Camera* camera, float mouseX, float mouseY,
+    float rectX, float rectY, float rectW, float rectH)
+{
+    // mouseX/mouseY 是屏幕坐标（ImGui::GetMousePos）
+    // rectX/Y/W/H 是 Viewport 图像区域的屏幕矩形
+
+    // 转成 Viewport 内部像素坐标
+    double mx = (double)(mouseX - rectX);
+    double my = (double)(mouseY - rectY);
+
+    // 归一化到 NDC：x [-1,1], y [-1,1]（注意 y 翻转）
+    double x = (2.0 * mx) / (double)rectW - 1.0;
+    double y = 1.0 - (2.0 * my) / (double)rectH;
+
+    mat4 V = camera->view();
+    mat4 P = camera->projection();
+    mat4 invVP = glm::inverse(P * V);
+
+    vec4 nearH = invVP * vec4(x, y, -1.0, 1.0);
+    vec4 farH = invVP * vec4(x, y, 1.0, 1.0);
+
+    vec3 nearP = vec3(nearH) / nearH.w;
+    vec3 farP = vec3(farH) / farH.w;
+
+    vec3 dir = glm::normalize(farP - nearP);
+    return Ray(nearP, dir);
+}
+
+static void CollectAllNodes(GameObject* root, std::vector<GameObject*>& out)
+{
+    if (!root) return;
+    out.push_back(root);
+    for (auto* c : root->children) CollectAllNodes(c, out);
+}
 
 /*void EditorWindows::drawViewportWindow(float x, float y, float w, float h)*/
 void EditorWindows::drawViewportWindow(Camera* camera, float x, float y, float w, float h)
@@ -367,6 +402,112 @@ void EditorWindows::drawViewportWindow(Camera* camera, float x, float y, float w
     else {
         ImGui::TextUnformatted("Viewport RT not ready...");
     }
+    // ---------- Viewport rect (screen space) ----------
+    ImVec2 winPos = ImGui::GetWindowPos();
+    ImVec2 crMin = ImGui::GetWindowContentRegionMin();
+    float rectX = winPos.x + crMin.x;
+    float rectY = winPos.y + crMin.y;
+    float rectW = (float)viewportW_;
+    float rectH = (float)viewportH_;
+
+    // ---------- ViewCube (always available) ----------
+    if (camera)
+    {
+        ImGuizmo::SetDrawlist();
+        ImGuizmo::SetRect(rectX, rectY, rectW, rectH);
+
+        glm::mat4 viewF = glm::mat4(camera->view());
+        const float viewSize = 96.0f;
+        const float pad = 4.0f;
+
+        ImGuizmo::ViewManipulate(
+            glm::value_ptr(viewF),
+            8.0f,
+            ImVec2(rectX + rectW - viewSize - pad, rectY + pad),
+            ImVec2(viewSize, viewSize),
+            0x00000000
+        );
+
+        camera->setFromViewMatrix(viewF);
+    }
+
+    // --------------------------
+    // Viewport Click Picking
+    // --------------------------
+    bool imageHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+    if (camera && scene_ && imageHovered)
+    {
+        // 避免与 Gizmo 冲突：鼠标在 Gizmo 上/正在拖 Gizmo 时不做点选
+        bool gizmoBusy = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+
+        // 左键单击（不按 Alt，避免与相机轨道操作冲突）
+        if (!gizmoBusy && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::IsKeyDown(ImGuiKey_LeftAlt) && !ImGui::IsKeyDown(ImGuiKey_RightAlt))
+        {
+            ImVec2 mouse = ImGui::GetMousePos();
+
+            // 点在 ViewCube 区域：跳过 picking（让 ViewManipulate 处理）
+            const float viewSize = 96.0f;
+            const float pad = 4.0f;
+            float cubeX0 = rectX + rectW - viewSize - pad;
+            float cubeY0 = rectY + pad;
+            float cubeX1 = cubeX0 + viewSize;
+            float cubeY1 = cubeY0 + viewSize;
+
+            bool skipPicking =
+                (mouse.x >= cubeX0 && mouse.x <= cubeX1 &&
+                    mouse.y >= cubeY0 && mouse.y <= cubeY1);
+
+            if (!skipPicking)
+            {
+
+                // 生成拾取射线
+                Ray ray = MakePickRayFromViewport(camera, mouse.x, mouse.y, rectX, rectY, rectW, rectH);
+
+                // 收集所有可选节点（root + children）
+                std::vector<GameObject*> nodes;
+                nodes.reserve(scene_->size() * 2);
+
+                for (auto& sp : *scene_)
+                {
+                    if (!sp) continue;
+                    // scene_ 里可能包含所有节点，也可能只有 roots
+                    // 为了兼容两种：只从 root（parent==nullptr）递归收集一次
+                    if (sp->parent == nullptr)
+                        CollectAllNodes(sp.get(), nodes);
+                }
+
+                // 找最近命中
+                GameObject* best = nullptr;
+                double bestT = 1e100;
+
+                for (GameObject* go : nodes)
+                {
+                    if (!go) continue;
+
+                    AABB box = go->computeWorldAABB();
+                    if (!box.isValid()) continue;
+
+                    double t = 0.0;
+                    if (ray.intersectsAABB(box, t))
+                    {
+                        if (t > 0.0 && t < bestT)
+                        {
+                            bestT = t;
+                            best = go;
+                        }
+                    }
+                }
+
+                if (best)
+                    setSelection(findShared(best));
+                else
+                    setSelection(nullptr); // 点空白：取消选择
+
+            }
+        }
+    }
+
     // ======================
 // Gizmo (ImGuizmo) begin
 // ======================
@@ -449,18 +590,7 @@ void EditorWindows::drawViewportWindow(Camera* camera, float x, float y, float w
             mode,
             glm::value_ptr(worldF)
         );
-        float viewSize = 96.0f; // 控件大小（可以调）
-
-        ImGuizmo::ViewManipulate(
-            glm::value_ptr(viewF),
-            8.0f, // 距离目标的距离
-            ImVec2(rectX + rectW - viewSize - 4.0f, rectY + 4.0f),
-            ImVec2(viewSize, viewSize),
-            0x00000000
-        );
-
         // ★ 这就是你刚才“找不到的步骤 3”
-        camera->setFromViewMatrix(viewF);
         // 当正在拖 gizmo 时，把新 world 写回 local（保持父子层级正确）
         if (ImGuizmo::IsUsing()) {
             mat4 newWorldD = mat4(worldF); // float->double
