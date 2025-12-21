@@ -144,7 +144,9 @@ void EditorWindows::loadStreetAsset(const std::string& filename, Camera* camera)
         go->setMesh(mesh);
 
         // Tu rotación para levantar la casa
-        go->transform.rotateEulerDeltaDeg(vec3(-90.0, 0.0, 0.0));
+        // go->transform.rotateEulerDeltaDeg(vec3(-90.0, 0.0, 0.0));
+		// Controlar el escalado
+        go->transform.setScale(vec3(0.5f, 0.5f, 0.5f));
 
         fs::path assetsRoot = fs::path(getAssetsPath());
         std::error_code ec;

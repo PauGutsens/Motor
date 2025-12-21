@@ -196,7 +196,8 @@ std::vector<std::shared_ptr<Mesh>> ModelLoader::loadModel(const std::string& pat
         aiProcess_RemoveRedundantMaterials |
         aiProcess_OptimizeMeshes |
         aiProcess_CalcTangentSpace |
-        aiProcess_ValidateDataStructure
+        aiProcess_ValidateDataStructure |
+        aiProcess_PreTransformVertices
     );
 
     if (!scene || !scene->mRootNode || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) != 0)
