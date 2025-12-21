@@ -68,7 +68,7 @@ void EditorWindows::init(SDL_Window* window, SDL_GLContext gl) {
     ImGui_ImplSDL3_InitForOpenGL(window_, gl_);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    log("Editor initialized / 编辑器初始化完成");
+    log("Editor initialized");
     currentScenePath_ = defaultScenePath();
     std::snprintf(scenePathBuf_, sizeof(scenePathBuf_), "%s", currentScenePath_.c_str());
 }
@@ -124,13 +124,13 @@ std::string EditorWindows::getAssetsPath() {
 }
 
 void EditorWindows::loadStreetAsset(const std::string& filename) {
-    if (!scene_) { log("Scene is null / scene_ 为空，先 setScene()"); return; }
+    if (!scene_) { log("Scene is null setScene()"); return; }
 
     fs::path p = fs::path(getAssetsPath()) / "Street" / filename;
-    if (!fs::exists(p)) { log(std::string("Asset not found / 找不到资源: ") + p.string()); return; }
+    if (!fs::exists(p)) { log(std::string("Asset not found: ") + p.string()); return; }
 
     auto meshes = ModelLoader::loadModel(p.string());
-    if (meshes.empty()) { log(std::string("Failed to load model / 加载失败: ") + p.string()); return; }
+    if (meshes.empty()) { log(std::string("Failed to load model: ") + p.string()); return; }
 
     std::shared_ptr<GameObject> firstGo = nullptr;
     std::string baseName = p.stem().string();
@@ -155,7 +155,7 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
     }
 
     if (firstGo) setSelection(firstGo);
-    log(std::string("Loaded / 已加载: ") + p.string());
+    log(std::string("Loaded: ") + p.string());
 }
 
 //void EditorWindows::drawMainMenuBar() {
@@ -212,7 +212,7 @@ void EditorWindows::drawMainMenuBar() {
             setSelection(nullptr);
             currentScenePath_ = defaultScenePath();
             std::snprintf(scenePathBuf_, sizeof(scenePathBuf_), "%s", currentScenePath_.c_str());
-            log("New scene / 新建场景");
+            log("New scene");
         }
 
         if (ImGui::MenuItem("Save Scene (Ctrl+S)")) {
@@ -281,7 +281,7 @@ void EditorWindows::ensureViewportRT(int w, int h) {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         destroyViewportRT();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        log("Viewport FBO incomplete / Viewport 帧缓冲不完整");
+        log("Viewport FBO incomplete");
         return;
     }
 
@@ -609,11 +609,11 @@ void EditorWindows::drawHierarchy(float x, float y, float w, float h) {
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Always);
     if (!ImGui::Begin("Hierarchy", nullptr, PanelFlags())) { ImGui::End(); return; }
 
-    if (!scene_) { ImGui::TextUnformatted("Scene is null / scene_ 为空"); ImGui::End(); return; }
+    if (!scene_) { ImGui::TextUnformatted("Scene is null"); ImGui::End(); return; }
 
-    if (ImGui::Button("Delete Selected / 删除选中")) deleteSelectedRecursive();
+    if (ImGui::Button("Delete Selected")) deleteSelectedRecursive();
     ImGui::SameLine();
-    if (ImGui::Button("Load Street / 加载 Street")) loadStreetAsset("Street environment_V01.FBX");
+    if (ImGui::Button("Load Street")) loadStreetAsset("Street environment_V01.FBX");
     ImGui::Separator();
 
     for (auto& sp : *scene_) {
@@ -631,7 +631,7 @@ void EditorWindows::drawConsole(float x, float y, float w, float h) {
     if (!ImGui::Begin("Console", &show_console_, PanelFlags())) { ImGui::End(); return; }
 
     static bool auto_scroll = true;
-    ImGui::Checkbox("Auto-scroll / 自动滚动", &auto_scroll);
+    ImGui::Checkbox("Auto-scroll", &auto_scroll);
     ImGui::Separator();
 
     ImGui::BeginChild("console_scroller", ImVec2(0, 0), false);
@@ -687,7 +687,7 @@ void EditorWindows::deleteSelectedRecursive() {
     collectPostorder(selected_.get(), post);
     setSelection(nullptr);
     for (GameObject* n : post) removeFromScene(n);
-    log("Deleted selection subtree / 已删除选中子树");
+    log("Deleted selection subtree");
 }
 
 void EditorWindows::reparent(GameObject* dragged, GameObject* target) {
@@ -770,10 +770,10 @@ void EditorWindows::drawInspector(Camera* camera, float x, float y, float w, flo
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Always);
     if (!ImGui::Begin("Inspector", nullptr, PanelFlags())) { ImGui::End(); return; }
 
-    if (!selected_) { ImGui::TextUnformatted("No selection / 未选中对象"); ImGui::End(); return; }
+    if (!selected_) { ImGui::TextUnformatted("No selection"); ImGui::End(); return; }
 
     GameObject* go = selected_.get();
-    if (camera && ImGui::Button("Frame Selected / 对焦选中"))
+    if (camera && ImGui::Button("Frame Selected"))
     {
         if (go->mesh)
         {
@@ -787,7 +787,7 @@ void EditorWindows::drawInspector(Camera* camera, float x, float y, float w, flo
     }
     ImGui::Separator();
 
-    ImGui::Text("Name / 名称:");
+    ImGui::Text("Name:");
     char buf[256];
     std::snprintf(buf, sizeof(buf), "%s", go->name.c_str());
     if (ImGui::InputText("##name", buf, sizeof(buf))) go->name = buf;
@@ -796,52 +796,52 @@ void EditorWindows::drawInspector(Camera* camera, float x, float y, float w, flo
 
     vec3 p = go->transform.pos();
     float pf[3] = { (float)p.x, (float)p.y, (float)p.z };
-    if (ImGui::DragFloat3("Position / 位置", pf, 0.05f))
+    if (ImGui::DragFloat3("Position", pf, 0.05f))
         go->transform.setPosition(vec3(pf[0], pf[1], pf[2]));
 
     vec3 s = go->transform.getScale();
     float sf[3] = { (float)s.x, (float)s.y, (float)s.z };
-    if (ImGui::DragFloat3("Scale / 缩放", sf, 0.02f, 0.001f, 1000.0f))
+    if (ImGui::DragFloat3("Scale", sf, 0.02f, 0.001f, 1000.0f))
         go->transform.setScale(vec3(sf[0], sf[1], sf[2]));
 
-    if (ImGui::Button("Reset Scale / 重置缩放")) go->transform.resetScale();
+    if (ImGui::Button("Reset Scale")) go->transform.resetScale();
 
     static float rotDelta[3] = { 0,0,0 };
-    ImGui::DragFloat3("Rotate Delta (deg) / 旋转增量(度)", rotDelta, 0.5f);
-    if (ImGui::Button("Apply Rotation / 应用旋转")) {
+    ImGui::DragFloat3("Rotate Delta (deg)", rotDelta, 0.5f);
+    if (ImGui::Button("Apply Rotation")) {
         go->transform.rotateEulerDeltaDeg(vec3(rotDelta[0], rotDelta[1], rotDelta[2]));
         rotDelta[0] = rotDelta[1] = rotDelta[2] = 0.0f;
     }
     ImGui::SameLine();
-    if (ImGui::Button("Reset Rotation / 重置旋转")) go->transform.resetRotation();
+    if (ImGui::Button("Reset Rotation")) go->transform.resetRotation();
 
     ImGui::Separator();
 
     if (go->mesh) {
-        ImGui::Text("Mesh / 网格: OK");
-        ImGui::Text("Vertices / 顶点: %d", (int)go->mesh->getVertexCount());
-        ImGui::Text("Triangles / 三角形: %d", (int)go->mesh->getTriangleCount());
+        ImGui::Text("Mesh: OK");
+        ImGui::Text("Vertices: %d", (int)go->mesh->getVertexCount());
+        ImGui::Text("Triangles: %d", (int)go->mesh->getTriangleCount());
 
         unsigned int tex = go->getTextureID();
-        ImGui::Text("TextureID / 纹理ID: %u", tex);
+        ImGui::Text("TextureID: %u", tex);
 
         if (tex) {
             int tw, th;
             glTextureSize((GLuint)tex, tw, th);
-            ImGui::Text("Texture size / 纹理尺寸: %dx%d", tw, th);
+            ImGui::Text("Texture size: %dx%d", tw, th);
         }
 
         bool showVN = go->mesh->showVertexNormals;
         bool showFN = go->mesh->showFaceNormals;
-        if (ImGui::Checkbox("Show Vertex Normals / 显示顶点法线", &showVN)) go->mesh->showVertexNormals = showVN;
-        if (ImGui::Checkbox("Show Face Normals / 显示面法线", &showFN)) go->mesh->showFaceNormals = showFN;
+        if (ImGui::Checkbox("Show Vertex Normals", &showVN)) go->mesh->showVertexNormals = showVN;
+        if (ImGui::Checkbox("Show Face Normals", &showFN)) go->mesh->showFaceNormals = showFN;
 
         float normalLen = (float)go->mesh->normalLength;
-        if (ImGui::DragFloat("Normal Length / 法线长度", &normalLen, 0.01f, 0.01f, 10.0f))
+        if (ImGui::DragFloat("Normal Length", &normalLen, 0.01f, 0.01f, 10.0f))
             go->mesh->normalLength = normalLen;
     }
     else {
-        ImGui::Text("Mesh / 网格: (null)");
+        ImGui::Text("Mesh: (null)");
     }
 
     ImGui::End();
@@ -857,28 +857,28 @@ std::string EditorWindows::defaultScenePath()
 
 void EditorWindows::doSaveScene(const std::string& path)
 {
-    if (!scene_) { log("Scene is null / scene_ 为空"); return; }
+    if (!scene_) { log("Scene is null"); return; }
 
     std::string err;
     if (!SceneIO::saveToFile(path, *scene_, &err))
     {
-        log(std::string("Save failed / 保存失败: ") + err);
+        log(std::string("Save failed: ") + err);
         return;
     }
 
     currentScenePath_ = path;
     std::snprintf(scenePathBuf_, sizeof(scenePathBuf_), "%s", currentScenePath_.c_str());
-    log(std::string("Saved scene / 已保存场景: ") + currentScenePath_);
+    log(std::string("Saved scene: ") + currentScenePath_);
 }
 
 void EditorWindows::doLoadScene(const std::string& path)
 {
-    if (!scene_) { log("Scene is null / scene_ 为空"); return; }
+    if (!scene_) { log("Scene is null"); return; }
 
     std::string err;
     if (!SceneIO::loadFromFile(path, *scene_, getAssetsPath(), &err))
     {
-        log(std::string("Load failed / 加载失败: ") + err);
+        log(std::string("Load failed: ") + err);
         return;
     }
 
@@ -886,7 +886,7 @@ void EditorWindows::doLoadScene(const std::string& path)
     std::snprintf(scenePathBuf_, sizeof(scenePathBuf_), "%s", currentScenePath_.c_str());
     setSelection(nullptr);
 
-    log(std::string("Loaded scene / 已加载场景: ") + currentScenePath_);
+    log(std::string("Loaded scene: ") + currentScenePath_);
 }
 
 void EditorWindows::drawSceneIOPopups()
@@ -947,7 +947,7 @@ void EditorWindows::onPlayPressed()
         // Snapshot current edit scene (Unity-like: stop restores)
         playBackup_ = SceneIO::serialize(*scene_);
         playState_ = PlayState::Playing;
-        log("Play / 进入运行模式 (snapshot created)");
+        log("Play (snapshot created)");
         return;
     }
 
@@ -955,7 +955,7 @@ void EditorWindows::onPlayPressed()
     if (playState_ == PlayState::Paused)
     {
         playState_ = PlayState::Playing;
-        log("Resume / 继续运行");
+        log("Resume");
     }
 }
 
@@ -964,12 +964,12 @@ void EditorWindows::onPausePressed()
     if (playState_ == PlayState::Playing)
     {
         playState_ = PlayState::Paused;
-        log("Pause / 暂停");
+        log("Pause");
     }
     else if (playState_ == PlayState::Paused)
     {
         playState_ = PlayState::Playing;
-        log("Resume / 继续运行");
+        log("Resume");
     }
 }
 
@@ -983,11 +983,11 @@ void EditorWindows::onStopPressed()
     std::string err;
     if (!playBackup_.empty() && SceneIO::deserialize(playBackup_, *scene_, getAssetsPath(), &err))
     {
-        log("Stop / 停止并恢复编辑场景");
+        log("Stop");
     }
     else
     {
-        log(std::string("Stop restore failed / 停止恢复失败: ") + err);
+        log(std::string("Stop restore failed:") + err);
     }
 
     playState_ = PlayState::Edit;
