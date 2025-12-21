@@ -142,6 +142,7 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
         std::string goName = (meshes.size() == 1) ? baseName : (baseName + "_" + std::to_string(i));
         auto go = std::make_shared<GameObject>(goName);
         go->setMesh(mesh);
+        go->transform.rotateEulerDeltaDeg(vec3(-90.0, 0.0, 0.0));
         fs::path assetsRoot = fs::path(getAssetsPath());
         std::error_code ec;
         fs::path rel = fs::relative(p, assetsRoot, ec);

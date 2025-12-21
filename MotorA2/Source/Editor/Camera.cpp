@@ -9,21 +9,21 @@ extern SDL_Window* window;
 
 Camera::Camera() {
     // Posición Inicial:
-    // X = 0 (Izq/Der)
-    // Y = 5 (Altura)
-    // Z = 20 (Atras/Adelante)
-    transform.pos() = vec3(0.0, -50.0, 50.0);
+    // X (Izq/Der)
+    // Y (Altura)
+    // Z (Atras/Adelante)
+    transform.pos() = vec3(0.0, -50.0, 40.0);
 
     // Orientación Inicial:
     // Pitch para mirar hacia abajo
-    _pitch = glm::radians(40.0);
+    _pitch = glm::radians(-20.0);
     _yaw = 0.0; // Mirando hacia -Z
 
     // Inicializar variables de órbita
     // Es importante que la distancia coincida con tu posición Z inicial
     // para que el zoom funcione suave desde el principio.
     _orbitTarget = vec3(0.0f, 0.0f, 0.0f);
-    _orbitDistance = 50.0;
+    _orbitDistance = 40.0;
 
     // Aplicar estos cambios a la matriz interna
     _applyYawPitchToBasis();
@@ -65,8 +65,10 @@ void Camera::onMouseMove(int x, int y) {
 
     // Prioridad de modos
     if (_alt && _lmb)        _orbitPixels(dx, dy);
-    else if (_mmb || (_rmb && _shift)) _panPixels(dx, dy);
-    else if (_rmb)           _freeLookPixels(dx, dy);
+    else if (_mmb || (_rmb && _shift)) _panPixels(-dx, dy);
+
+    // Usamos _orbitPixels en lugar de _freeLookPixels para el clic derecho (_rmb)
+    else if (_rmb)           _orbitPixels(dx, dy);
 }
 
 void Camera::onMouseWheel(int direction) {
