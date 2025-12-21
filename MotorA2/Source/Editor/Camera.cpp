@@ -7,6 +7,28 @@
 
 extern SDL_Window* window;
 
+Camera::Camera() {
+    // Posición Inicial:
+    // X = 0 (Izq/Der)
+    // Y = 5 (Altura)
+    // Z = 20 (Atras/Adelante)
+    transform.pos() = vec3(0.0, -50.0, 50.0);
+
+    // Orientación Inicial:
+    // Pitch para mirar hacia abajo
+    _pitch = glm::radians(40.0);
+    _yaw = 0.0; // Mirando hacia -Z
+
+    // Inicializar variables de órbita
+    // Es importante que la distancia coincida con tu posición Z inicial
+    // para que el zoom funcione suave desde el principio.
+    _orbitTarget = vec3(0.0f, 0.0f, 0.0f);
+    _orbitDistance = 50.0;
+
+    // Aplicar estos cambios a la matriz interna
+    _applyYawPitchToBasis();
+}
+
 mat4 Camera::projection() const {
     return glm::perspective(fov, aspect, zNear, zFar);
 }

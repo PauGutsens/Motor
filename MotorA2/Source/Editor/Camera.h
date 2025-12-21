@@ -6,6 +6,7 @@
 
 class Camera {
 public:
+    Camera();
     double fov = glm::radians(60.0);
     double aspect = 16.0 / 9.0;
     double zNear = 0.1;
