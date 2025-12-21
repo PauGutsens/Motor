@@ -142,8 +142,7 @@ void Camera::_orbitPixels(int dx, int dy) {
 
 
 void Camera::_panPixels(int dx, int dy) {
-    vec3 f = glm::normalize(transform.fwd());
-    vec3 r = -glm::normalize(transform.left());
+    vec3 r = glm::normalize(glm::cross(transform.fwd(), _worldUp()));
     vec3 u = glm::normalize(transform.up());
 
     double refDist = _orbitDistance;
@@ -151,7 +150,7 @@ void Camera::_panPixels(int dx, int dy) {
         refDist = 1.0;
     }
     double s = panSpeed * refDist;
-    transform.pos() += (-r * (double)dx + u * (double)dy) * s;
+    transform.pos() += (r * (double)dx + u * (double)dy) * s;
 }
 
 void Camera::_moveFPS(double dt) {
@@ -159,15 +158,15 @@ void Camera::_moveFPS(double dt) {
 
     double speed = moveSpeed * (_shift ? 2.0 : 1.0);
     vec3 f = glm::normalize(transform.fwd());
-    vec3 r = -glm::normalize(transform.left());
+    vec3 r = glm::normalize(glm::cross(f, _worldUp()));
     vec3 move(0.0);
 
     if (_w) move += f;
     if (_s) move -= f;
-    if (_a) move -= r;
-    if (_d) move += r;
-    if (_q) move += vec3(0, -1, 0);
-    if (_e) move += vec3(0, 1, 0);
+    if (_d) move += r;  // D = derecha
+    if (_a) move -= r;  // A = izquierda
+    if (_q) move -= vec3(0, 1, 0);  // Q = bajar
+    if (_e) move += vec3(0, 1, 0);  // E = subir
 
     if (glm::length(move) > 0.0) {
         move = glm::normalize(move) * (speed * dt);
