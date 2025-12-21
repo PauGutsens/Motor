@@ -86,7 +86,7 @@ private:
     void drawMainMenuBar();
     void drawViewportWindow(Camera* camera, float x, float y, float w, float h);
 
-    void drawHierarchy(float x, float y, float w, float h);
+    void drawHierarchy(Camera* camera, float x, float y, float w, float h);
     void drawInspector(Camera* camera, float x, float y, float w, float h);
     void drawConsole(float x, float y, float w, float h);
     void drawAbout();
@@ -105,7 +105,7 @@ private:
     // Helpers
     void log(const std::string& s);
     std::string getAssetsPath();
-    void loadStreetAsset(const std::string& filename);
+    void loadStreetAsset(const std::string& filename, Camera* camera = nullptr);
 
     void drawHierarchyNode(GameObject* node);
     void setSelection(const std::shared_ptr<GameObject>& go);

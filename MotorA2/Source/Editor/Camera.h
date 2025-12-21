@@ -19,6 +19,14 @@ public:
 
     Transform transform;
 
+    // --- VARIABLES MOVIDAS A PUBLIC ---
+    // Las necesitamos públicas para poder configurarlas desde el EditorWindows
+    double _yaw = 0.0;
+    double _pitch = 0.0;
+    vec3   _orbitTarget = vec3(0.0);
+    double _orbitDistance = 5.0;
+    // ----------------------------------
+
     mat4 projection() const;
     mat4 view() const;
 
@@ -29,13 +37,12 @@ public:
     void onKeyUp(int scancode);
     void onSpecialKeyDown(int key) {}
     void onSpecialKeyUp(int key) {}
+
     // Camera.h
     void setFromViewMatrix(const glm::mat4& view);
+
     // Frame Selected / Editor helper
-// Editor helper
     void frameTo(const vec3& center, double radius);
-
-
 
     void update(double dt);
 
@@ -51,11 +58,7 @@ private:
     int _lastX = 0, _lastY = 0;
     bool _haveLast = false;
 
-    // orientación/órbita
-    double _yaw = 0.0;
-    double _pitch = 0.0;
-    vec3   _orbitTarget = vec3(0.0);
-    double _orbitDistance = 5.0;
+    // YA NO ESTÁN AQUÍ (Movidas a Public)
 
     void _applyYawPitchToBasis();
     void _panPixels(int dx, int dy);

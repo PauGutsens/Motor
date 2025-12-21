@@ -123,7 +123,7 @@ std::string EditorWindows::getAssetsPath() {
     return (fs::current_path() / "Assets").string();
 }
 
-void EditorWindows::loadStreetAsset(const std::string& filename) {
+void EditorWindows::loadStreetAsset(const std::string& filename, Camera* camera) {
     if (!scene_) { log("Scene is null setScene()"); return; }
 
     fs::path p = fs::path(getAssetsPath()) / "Street" / filename;
@@ -142,7 +142,10 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
         std::string goName = (meshes.size() == 1) ? baseName : (baseName + "_" + std::to_string(i));
         auto go = std::make_shared<GameObject>(goName);
         go->setMesh(mesh);
+
+        // Tu rotación para levantar la casa
         go->transform.rotateEulerDeltaDeg(vec3(-90.0, 0.0, 0.0));
+
         fs::path assetsRoot = fs::path(getAssetsPath());
         std::error_code ec;
         fs::path rel = fs::relative(p, assetsRoot, ec);
@@ -157,6 +160,25 @@ void EditorWindows::loadStreetAsset(const std::string& filename) {
 
     if (firstGo) setSelection(firstGo);
     log(std::string("Loaded: ") + p.string());
+
+    if (camera)
+    {
+        // 1. Definir dónde está la cámara y a dónde mira
+        vec3 eye = vec3(0.0f, 20.0f, 60.0f);
+        vec3 center = vec3(0.0f, 0.0f, 0.0f);
+        vec3 up = vec3(0.0f, 1.0f, 0.0f);
+
+        // 2. Crear una matriz de vista manualmente usando GLM
+        glm::mat4 view = glm::lookAt(eye, center, up);
+
+        // 3. Ajustar variables de órbita (Ahora funciona porque las hiciste PUBLICAS en el Paso 1)
+        camera->_orbitTarget = center;
+        camera->_orbitDistance = glm::length(eye - center);
+
+        // 4. Aplicar todo a la cámara
+        // Esto coloca la cámara, calcula los ángulos y actualiza la vista
+        camera->setFromViewMatrix(view);
+    }
 }
 
 //void EditorWindows::drawMainMenuBar() {
@@ -328,7 +350,7 @@ void EditorWindows::drawUI(Camera* camera) {
     float centerH = ws.y - bottomH;
 
     // Panels
-    drawHierarchy(wp.x, wp.y, leftW, centerH);
+    drawHierarchy(camera, wp.x, wp.y, leftW, centerH);
     drawInspector(camera, wp.x + ws.x - rightW, wp.y, rightW, centerH);
     if (show_console_) drawConsole(wp.x, wp.y + centerH, ws.x, bottomH);
 
@@ -605,7 +627,7 @@ void EditorWindows::drawViewportWindow(Camera* camera, float x, float y, float w
     ImGui::End();
 }
 
-void EditorWindows::drawHierarchy(float x, float y, float w, float h) {
+void EditorWindows::drawHierarchy(Camera* camera, float x, float y, float w, float h) {
     ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Always);
     if (!ImGui::Begin("Hierarchy", nullptr, PanelFlags())) { ImGui::End(); return; }
@@ -614,7 +636,11 @@ void EditorWindows::drawHierarchy(float x, float y, float w, float h) {
 
     if (ImGui::Button("Delete Selected")) deleteSelectedRecursive();
     ImGui::SameLine();
-    if (ImGui::Button("Load Street")) loadStreetAsset("Street environment_V01.FBX");
+    if (ImGui::Button("Load Street"))
+    {
+        // Pásale 'camera' (que te llega por argumento a drawHierarchy)
+        loadStreetAsset("Street environment_V01.FBX", camera);
+    }
     ImGui::Separator();
 
     for (auto& sp : *scene_) {
